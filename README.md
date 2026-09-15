@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GuessTheBollySong
 
-## Getting Started
+A daily Bollywood song guessing game (Heardle-style): guess the song from a short audio clip
+in 6 tries. Each skip lengthens the clip and reveals one more hint (genre, year, duration,
+album, artist). Includes a full archive of past puzzles.
 
-First, run the development server:
+Full architecture/implementation plan: see the project plan doc referenced in this repo's
+commit history, or ask Claude Code to summarize `db/schema.ts`, `lib/puzzle-service.ts`, and
+the routes under `app/api/`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Setup
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **Database.** Local development uses PostgreSQL running on `localhost:5432`. A dedicated
+   role/database were created for this project:
+   - role: `gtbs_app` / password: `gtbs_local_dev_pw`
+   - database: `guessthebollysong`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   For production, point `DATABASE_URL` at a hosted Postgres instance instead (e.g.
+   [Neon](https://neon.tech)) — the app uses the standard `pg`/node-postgres driver, which
+   works against local Postgres or any hosted Postgres connection string unchanged.
+2. `.env.local` is already set up with the local `DATABASE_URL` and a dev `CRON_SECRET`. Use
+   `.env.example` as the template when configuring a production environment.
+3. Install dependencies and push the schema:
+   ```bash
+   npm install
+   npm run db:push
+   ```
+4. Seed the song catalog (resolves each song in `scripts/data/seed-song-list.csv` against the
+   Deezer and iTunes preview APIs and inserts it into the `songs` table):
+   ```bash
+   npm run catalog:ingest
+   ```
+   Songs that can't be resolved are written to `scripts/data/unresolved-songs.csv` for manual
+   follow-up. Grow the catalog over time by adding rows to `seed-song-list.csv` and re-running
+   this script.
+5. Generate the daily puzzle schedule (picks songs for the next 90 days, avoiding repeats):
+   ```bash
+   npm run puzzles:generate
+   ```
+6. Run the dev server:
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Key scripts
 
-## Learn More
+| Script | Purpose |
+| --- | --- |
+| `npm run catalog:ingest` | Resolve `scripts/data/seed-song-list.csv` against Deezer/iTunes and upsert into `songs` |
+| `npm run puzzles:generate` | Top up the `daily_puzzles` schedule (idempotent, deterministic) |
+| `npm run db:push` | Push the Drizzle schema to the database (use `db:generate`/`db:migrate` for versioned migrations instead) |
+| `npm run db:studio` | Open Drizzle Studio to browse the database |
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture notes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Audio**: preview clips come from the Deezer public API (primary) and iTunes Search API
+  (fallback) — never Spotify, whose `preview_url` is deprecated for most apps. Clips are
+  streamed through `/api/audio/[date]` (date-scoped, not song-id-scoped) so the underlying
+  song's identity is never exposed via a client-visible URL.
+  **Note:** Deezer's catalog is geo-blocked for requests from India (`data: []` despite a
+  nonzero `total` in search results) — if you run `catalog:ingest` from an Indian IP, every
+  song will resolve via the iTunes fallback instead, which works fine and is what happened for
+  the initial 39-song seed catalog. This isn't a problem for the deployed app itself (Vercel's
+  infra isn't India-based), only for local ingestion runs.
+- **Anti-cheat**: daily puzzles are generated ahead of time by `scripts/generate-puzzles.ts`,
+  not computed live from a client-derivable seed. Guess correctness is always validated
+  server-side in `lib/puzzle-service.ts`.
+- **Identity**: anonymous, device-id based (a UUID in `localStorage`) — no login required for
+  the MVP. See `lib/hooks/useDeviceId.ts`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploying
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy to [Vercel](https://vercel.com/new). Set the same env vars as `.env.example` in the
+project settings, and Vercel will pick up the cron job defined in `vercel.json`
+(`/api/cron/ensure-puzzles`, daily) automatically.

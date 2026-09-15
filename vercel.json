@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/ensure-puzzles",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
