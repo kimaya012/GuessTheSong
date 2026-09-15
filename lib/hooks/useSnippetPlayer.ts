@@ -24,16 +24,15 @@ export function useSnippetPlayer({
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
     const audio = new Audio();
-    audio.preload = "auto";
-    audio.src = src;
     audioRef.current = audio;
     queueMicrotask(() => {
       setIsReady(false);
       setProgress(0);
     });
 
-    const handleCanPlay = () => setIsReady(true);
     const handleTimeUpdate = () => {
       if (audio.currentTime >= snippetDurationSec) {
         audio.pause();
@@ -49,15 +48,35 @@ export function useSnippetPlayer({
       setProgress(0);
     };
 
-    audio.addEventListener("canplaythrough", handleCanPlay);
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("ended", handleEnded);
 
+    // Fetch the (small, ~1MB) preview clip as a blob and play it from an
+    // object URL, rather than pointing the <audio> element's `src` directly
+    // at the network endpoint. This sidesteps browser-specific quirks in
+    // how <audio> elements negotiate range requests/preloading over the
+    // network — the element only ever deals with fully-local data.
+    fetch(src)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load audio (${res.status})`);
+        return res.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        audio.src = objectUrl;
+        setIsReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setIsReady(false);
+      });
+
     return () => {
+      cancelled = true;
       audio.pause();
-      audio.removeEventListener("canplaythrough", handleCanPlay);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("ended", handleEnded);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
       audioRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

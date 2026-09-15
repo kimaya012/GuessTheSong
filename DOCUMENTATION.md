@@ -119,11 +119,38 @@ deployed app (Vercel's infra isn't India-based), only local ingestion runs.
   - `/api/archive` correctly excludes today and future dates.
   - `/api/stats` stays at all-zero until a puzzle is actually completed.
 
+### 8. Browser play-testing found and fixed two real audio bugs
+Loaded the app in an actual Chrome tab and found the play button stuck in a permanent
+loading state. Root cause, found via a mix of `curl` header inspection and in-page JS
+diagnostics:
+- The original `/api/audio/[date]` proxy piped the upstream response straight through
+  without handling `Range` requests or setting `Content-Length` — `<audio>` elements send a
+  `Range: bytes=0-` request on load and stall indefinitely if the response comes back `200`
+  instead of a proper `206 Partial Content` with a known length. **Fix:** buffer the (small,
+  ~1MB) preview clip server-side and serve real `206`/`Content-Length`/`Accept-Ranges`
+  responses, with an in-memory cache keyed by the upstream URL.
+- Separately, iTunes' CDN mislabels plain (non-DRM) AAC preview clips as
+  `audio/x-m4p` — the MIME type for FairPlay-*protected* purchases — which browsers refuse
+  to decode even though the bytes are ordinary playable M4A/AAC-LC audio (confirmed via
+  `file`/`xxd` on the downloaded bytes). **Fix:** normalize the content-type to `audio/mp4`
+  before serving it.
+- Additionally rewrote `useSnippetPlayer` to fetch the clip as a `Blob` and play it from an
+  `URL.createObjectURL()` reference rather than pointing `<audio src>` directly at the
+  network endpoint — more robust in general (no reliance on the browser's native range/
+  streaming negotiation for a file this small) and it's what made the play button reliably
+  flip from a loading spinner to ready in the browser.
+- Verified end-to-end in Chrome: catalog/puzzle data loads, the play button reaches the
+  ready state, and clicking it returns the UI to a clean idle state consistent with the 1s
+  snippet having played and auto-stopped as designed.
+
 ## Next steps
 
-1. **Play-test in a real browser** — open `http://localhost:3000`, actually click through a
-   full game (play/skip/guess/win/lose), check the archive and stats pages render correctly,
-   and confirm mobile responsiveness.
+1. ~~Play-test in a real browser~~ — done; found and fixed the audio-loading bugs above.
+   Still worth a manual pass yourself: click through a full game (play/skip/guess/win/lose),
+   check archive/stats pages, and confirm mobile responsiveness — some interaction testing
+   in the automated browser session was inconclusive (the debugger connection occasionally
+   stalled during real audio decode, which looks like a quirk of the automation tooling
+   itself rather than the app, but hasn't been independently confirmed in a normal browser).
 2. **Grow the catalog** — add more rows to `scripts/data/seed-song-list.csv` (target
    200–500 songs across eras/genres per the original plan) and re-run
    `npm run catalog:ingest`; review `scripts/data/unresolved-songs.csv` for songs that need a
