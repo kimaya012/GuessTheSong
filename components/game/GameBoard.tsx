@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useDeviceId } from "@/lib/hooks/useDeviceId";
 import { AudioPlayer } from "./AudioPlayer";
 import { GuessInput } from "./GuessInput";
-import { HintsPanel } from "./HintsPanel";
-import { AttemptHistory } from "./AttemptHistory";
+import { ProgressionBar } from "./ProgressionBar";
 import { ResultShareCard } from "./ResultShareCard";
+import { ScoreHud } from "./ScoreHud";
 import { AdSlot } from "@/components/ads/AdSlot";
 import type { CatalogSong, PuzzleShell } from "./types";
 
@@ -23,6 +23,7 @@ export function GameBoard({ date, puzzleEndpoint, audioEndpoint }: GameBoardProp
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [extending, setExtending] = useState(false);
 
   useEffect(() => {
     if (!deviceId) return;
@@ -59,14 +60,14 @@ export function GameBoard({ date, puzzleEndpoint, audioEndpoint }: GameBoardProp
     };
   }, [deviceId, puzzleEndpoint]);
 
-  async function submit(songId: string | null, guessText: string) {
+  async function submit(songId: string | null, guessText: string, giveUp = false) {
     if (!deviceId || submitting) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/puzzle/${date}/guess`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId, songId, guessText }),
+        body: JSON.stringify({ deviceId, songId, guessText, giveUp }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -76,6 +77,33 @@ export function GameBoard({ date, puzzleEndpoint, audioEndpoint }: GameBoardProp
       setShell(data.shell);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function handleGiveUp() {
+    if (submitting) return;
+    if (window.confirm("Give up on today's puzzle? This ends the game and reveals the answer.")) {
+      submit(null, "", true);
+    }
+  }
+
+  async function handleExtend() {
+    if (!deviceId || extending) return;
+    setExtending(true);
+    try {
+      const res = await fetch(`/api/puzzle/${date}/extend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Failed to extend the snippet.");
+        return;
+      }
+      setShell(data.shell);
+    } finally {
+      setExtending(false);
     }
   }
 
@@ -89,14 +117,25 @@ export function GameBoard({ date, puzzleEndpoint, audioEndpoint }: GameBoardProp
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Puzzle #{shell.puzzleNumber}</h2>
-        <AttemptHistory maxAttempts={shell.maxAttempts} guesses={shell.guesses} />
-      </div>
+      <h2 className="font-heading text-lg text-foreground">Puzzle #{shell.puzzleNumber}</h2>
+
+      <ScoreHud
+        currentScore={shell.currentScore}
+        snippetDurationSec={shell.snippetDurationSec}
+        extendCost={shell.extendCost}
+        onExtend={handleExtend}
+        extending={extending}
+        disabled={shell.completed}
+      />
 
       <AudioPlayer audioSrc={audioEndpoint} snippetDurationSec={shell.snippetDurationSec} />
 
-      <HintsPanel revealedHints={shell.revealedHints} />
+      <ProgressionBar
+        maxAttempts={shell.maxAttempts}
+        guesses={shell.guesses}
+        attemptsUsed={shell.attemptsUsed}
+        revealedHints={shell.revealedHints}
+      />
 
       {shell.completed ? (
         <>
@@ -109,6 +148,7 @@ export function GameBoard({ date, puzzleEndpoint, audioEndpoint }: GameBoardProp
           disabled={submitting}
           onGuess={(song) => submit(song.id, song.title)}
           onSkip={() => submit(null, "")}
+          onGiveUp={handleGiveUp}
         />
       )}
     </div>

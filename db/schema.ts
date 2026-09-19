@@ -33,6 +33,7 @@ export const songs = pgTable(
     previewUrl: text("preview_url").notNull(),
     previewSource: text("preview_source").notNull(), // 'deezer' | 'itunes' | 'spotify'
     coverImageUrl: text("cover_image_url"),
+    externalUrl: text("external_url"), // link to listen to the full song on its source platform
     active: boolean("active").notNull().default(true),
     createdAt: timestamptzCol("created_at").notNull().defaultNow(),
     updatedAt: timestamptzCol("updated_at").notNull().defaultNow(),
@@ -53,10 +54,6 @@ export const dailyPuzzles = pgTable(
     songId: uuid("song_id")
       .notNull()
       .references(() => songs.id),
-    snippetTimings: integer("snippet_timings")
-      .array()
-      .notNull()
-      .default(sql`'{1,2,4,7,11,16}'::integer[]`),
     createdAt: timestamptzCol("created_at").notNull().defaultNow(),
   },
   (table) => [
@@ -83,6 +80,8 @@ export const attempts = pgTable(
       .references(() => dailyPuzzles.id),
     guesses: jsonb("guesses").notNull().default(sql`'[]'::jsonb`),
     attemptsUsed: integer("attempts_used").notNull().default(0),
+    currentScore: integer("current_score").notNull().default(10000),
+    snippetDurationSec: integer("snippet_duration_sec").notNull().default(1),
     won: boolean("won"),
     completedAt: timestamptzCol("completed_at"),
     createdAt: timestamptzCol("created_at").notNull().defaultNow(),
@@ -104,6 +103,7 @@ export const userStats = pgTable("user_stats", {
     .array()
     .notNull()
     .default(sql`'{0,0,0,0,0,0,0}'::integer[]`),
+  totalPoints: integer("total_points").notNull().default(0),
   lastPlayedDate: date("last_played_date"),
   updatedAt: timestamptzCol("updated_at").notNull().defaultNow(),
 });

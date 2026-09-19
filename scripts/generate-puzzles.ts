@@ -2,7 +2,6 @@ import "./load-env";
 import { db } from "../lib/db";
 import { songs, dailyPuzzles } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { SNIPPET_TIMINGS } from "../lib/constants";
 
 // How many days ahead the puzzle horizon should be kept topped up.
 const DEFAULT_HORIZON_DAYS = 90;
@@ -98,7 +97,6 @@ async function main() {
     puzzleNumber: maxPuzzleNumber + i + 1,
     date,
     songId: shuffled[i % shuffled.length],
-    snippetTimings: [...SNIPPET_TIMINGS],
   }));
 
   await db.insert(dailyPuzzles).values(rowsToInsert);

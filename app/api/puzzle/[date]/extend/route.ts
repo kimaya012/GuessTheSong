@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { submitGuess } from "@/lib/puzzle-service";
+import { extendSnippet } from "@/lib/puzzle-service";
 import { isFutureDate, isValidDateString, resolveDateParam } from "@/lib/date";
 
 const bodySchema = z.object({
   deviceId: z.string().uuid(),
-  songId: z.string().uuid().nullable(),
-  guessText: z.string().max(200).default(""),
-  giveUp: z.boolean().optional(),
 });
 
 export async function POST(
@@ -31,14 +28,14 @@ export async function POST(
   }
 
   try {
-    const result = await submitGuess({ date, ...parsed.data });
-    return NextResponse.json(result);
+    const shell = await extendSnippet({ date, deviceId: parsed.data.deviceId });
+    return NextResponse.json({ shell });
   } catch (err) {
     const message = err instanceof Error ? err.message : "UNKNOWN_ERROR";
     const status =
       message === "NO_PUZZLE_FOR_DATE"
         ? 404
-        : message === "ALREADY_COMPLETED" || message === "NO_ATTEMPTS_LEFT"
+        : message === "ALREADY_COMPLETED" || message === "NOT_ENOUGH_POINTS"
           ? 409
           : 500;
     return NextResponse.json({ error: message }, { status });

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { userStats } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { roleForPoints } from "@/lib/roles";
 
 export async function GET(req: NextRequest) {
   const deviceId = req.nextUrl.searchParams.get("deviceId");
@@ -24,9 +25,11 @@ export async function GET(req: NextRequest) {
       currentStreak: 0,
       maxStreak: 0,
       guessDistribution: [0, 0, 0, 0, 0, 0, 0],
+      totalPoints: 0,
       lastPlayedDate: null,
+      roleProgress: roleForPoints(0),
     });
   }
 
-  return NextResponse.json(rows[0]);
+  return NextResponse.json({ ...rows[0], roleProgress: roleForPoints(rows[0].totalPoints) });
 }

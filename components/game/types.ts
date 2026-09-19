@@ -12,6 +12,7 @@ export interface GuessRecord {
   correct: boolean;
   attemptNumber: number;
   timestampMs: number;
+  gaveUp?: boolean;
 }
 
 export interface PuzzleShell {
@@ -19,11 +20,14 @@ export interface PuzzleShell {
   date: string;
   maxAttempts: number;
   snippetDurationSec: number;
+  currentScore: number;
+  extendCost: number;
   revealedHints: Partial<Record<string, string | number | null>>;
   attemptsUsed: number;
   guesses: GuessRecord[];
   completed: boolean;
   won: boolean | null;
+  pointsEarned?: number;
   answer?: {
     title: string;
     artist: string;
@@ -32,5 +36,6 @@ export interface PuzzleShell {
     genre: string | null;
     durationSec: number | null;
     coverImageUrl: string | null;
+    externalUrl: string | null;
   };
 }

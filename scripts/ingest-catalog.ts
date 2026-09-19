@@ -25,6 +25,7 @@ interface ResolvedSong {
   previewUrl: string;
   previewSource: "deezer" | "itunes";
   coverImageUrl: string | null;
+  externalUrl: string | null;
 }
 
 function normalize(text: string): string {
@@ -69,6 +70,7 @@ interface DeezerTrack {
   id: number;
   title: string;
   preview: string;
+  link?: string;
   duration?: number;
   artist?: { name?: string };
   album?: { title?: string; cover_medium?: string };
@@ -84,6 +86,7 @@ interface ItunesTrack {
   trackTimeMillis?: number;
   previewUrl?: string;
   artworkUrl100?: string;
+  trackViewUrl?: string;
 }
 
 async function searchDeezer(title: string, artist: string): Promise<ResolvedSong | null> {
@@ -119,6 +122,7 @@ async function searchDeezer(title: string, artist: string): Promise<ResolvedSong
     previewUrl: best.preview,
     previewSource: "deezer",
     coverImageUrl: best.album?.cover_medium ?? null,
+    externalUrl: best.link ?? `https://www.deezer.com/track/${best.id}`,
   };
 }
 
@@ -160,6 +164,7 @@ async function searchItunes(title: string, artist: string): Promise<ResolvedSong
     previewUrl: best.previewUrl,
     previewSource: "itunes",
     coverImageUrl: best.artworkUrl100 ?? null,
+    externalUrl: best.trackViewUrl ?? null,
   };
 }
 
@@ -225,21 +230,22 @@ async function main() {
       itunesTrackId: resolved.itunesTrackId,
       previewUrl: resolved.previewUrl,
       previewSource: resolved.previewSource,
+      externalUrl: resolved.externalUrl,
       coverImageUrl: resolved.coverImageUrl,
       active: true,
     };
 
-    if (resolved.deezerTrackId) {
-      const existing = await db
-        .select({ id: songs.id })
-        .from(songs)
-        .where(eq(songs.deezerTrackId, resolved.deezerTrackId))
-        .limit(1);
-      if (existing.length > 0) {
-        console.log("ALREADY EXISTS");
-        await sleep(250);
-        continue;
-      }
+    const dedupeCondition = resolved.deezerTrackId
+      ? eq(songs.deezerTrackId, resolved.deezerTrackId)
+      : resolved.itunesTrackId
+        ? eq(songs.itunesTrackId, resolved.itunesTrackId)
+        : eq(songs.titleNormalized, finalRow.titleNormalized);
+
+    const existing = await db.select({ id: songs.id }).from(songs).where(dedupeCondition).limit(1);
+    if (existing.length > 0) {
+      console.log("ALREADY EXISTS");
+      await sleep(250);
+      continue;
     }
 
     await db.insert(songs).values(finalRow);

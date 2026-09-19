@@ -23,6 +23,14 @@ export function useSnippetPlayer({
   const [progress, setProgress] = useState(0);
   const [isReady, setIsReady] = useState(false);
 
+  // Kept in a ref (not just a closure over the prop) so the timeupdate
+  // handler registered in the effect below always sees the latest snippet
+  // duration, even though the effect itself only re-runs when `src` changes.
+  const durationRef = useRef(snippetDurationSec);
+  useEffect(() => {
+    durationRef.current = snippetDurationSec;
+  }, [snippetDurationSec]);
+
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
@@ -34,14 +42,15 @@ export function useSnippetPlayer({
     });
 
     const handleTimeUpdate = () => {
-      if (audio.currentTime >= snippetDurationSec) {
+      const duration = durationRef.current;
+      if (audio.currentTime >= duration) {
         audio.pause();
         audio.currentTime = 0;
         setIsPlaying(false);
         setProgress(0);
         return;
       }
-      setProgress(Math.min(1, audio.currentTime / snippetDurationSec));
+      setProgress(Math.min(1, audio.currentTime / duration));
     };
     const handleEnded = () => {
       setIsPlaying(false);
@@ -79,7 +88,6 @@ export function useSnippetPlayer({
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       audioRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
   const play = useCallback(() => {
