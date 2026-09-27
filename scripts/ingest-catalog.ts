@@ -221,9 +221,12 @@ async function main() {
       title: resolved.title,
       titleNormalized: normalize(resolved.title),
       artist: resolved.artist,
-      album: resolved.album ?? row.hint_album ?? null,
-      year: resolved.year ?? (row.hint_year ? Number(row.hint_year) : null),
-      genre: resolved.genre ?? row.hint_genre ?? null,
+      // Curated seed hints win over API metadata: iTunes labels every track
+      // "Bollywood" (useless as a hint), uses reissue dates, and appends
+      // "(Original Motion Picture Soundtrack)" to album names.
+      album: row.hint_album || resolved.album || null,
+      year: row.hint_year ? Number(row.hint_year) : resolved.year,
+      genre: row.hint_genre || resolved.genre || null,
       durationSec: resolved.durationSec,
       deezerTrackId: resolved.deezerTrackId,
       spotifyTrackId: null,

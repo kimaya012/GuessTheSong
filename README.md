@@ -1,76 +1,61 @@
 # GuessTheBollySong
 
-A daily Bollywood song guessing game (Heardle-style): guess the song from a short audio clip
-in 6 tries. Each skip lengthens the clip and reveals one more hint (genre, year, duration,
-album, artist). Includes a full archive of past puzzles.
+A daily Bollywood song guessing game. Hear 0.4 seconds of a song, then 1s, 2s, 5s, 7s and 9s with
+each miss, plus one new hint per miss. Six tries. A first-guess win is worth 6 points, a sixth-guess
+win 1 point (the same scoring as guesstheaudio.com).
 
-Full architecture/implementation plan: see the project plan doc referenced in this repo's
-commit history, or ask Claude Code to summarize `db/schema.ts`, `lib/puzzle-service.ts`, and
-the routes under `app/api/`.
+- **Free**: today's song, the last 7 days of the archive, stats (on this device, or on every device once signed in).
+- **Premium** (Buy Me a Coffee membership): the full archive, no ads, deep stats, a crown on share cards.
 
-## Setup
+Architecture and decisions: [`docs/superpowers/specs/2026-09-27-premium-redesign-design.md`](docs/superpowers/specs/2026-09-27-premium-redesign-design.md).
+Build log: [`DOCUMENTATION.md`](DOCUMENTATION.md).
 
-1. **Database.** Local development uses PostgreSQL running on `localhost:5432`. A dedicated
-   role/database were created for this project:
-   - role: `gtbs_app` / password: `gtbs_local_dev_pw`
-   - database: `guessthebollysong`
+## Local setup
 
-   For production, point `DATABASE_URL` at a hosted Postgres instance instead (e.g.
-   [Neon](https://neon.tech)) — the app uses the standard `pg`/node-postgres driver, which
-   works against local Postgres or any hosted Postgres connection string unchanged.
-2. `.env.local` is already set up with the local `DATABASE_URL` and a dev `CRON_SECRET`. Use
-   `.env.example` as the template when configuring a production environment.
-3. Install dependencies and push the schema:
+1. **Database.** Create a least-privilege role and database (as the `postgres` superuser):
+   ```sql
+   CREATE ROLE gtbs_app LOGIN PASSWORD '<generate one>';
+   CREATE DATABASE guessthebollysong OWNER gtbs_app;
+   ```
+2. **Environment.** Copy `.env.example` to `.env.local` and fill in `DATABASE_URL`, `BETTER_AUTH_SECRET`,
+   `DEVICE_COOKIE_SECRET` and `ADMIN_EMAILS`. Everything else is optional locally: without
+   `RESEND_API_KEY`, sign-in links are printed in the dev-server console.
+3. **Install and migrate.**
    ```bash
    npm install
-   npm run db:push
+   npm run db:migrate
    ```
-4. Seed the song catalog (resolves each song in `scripts/data/seed-song-list.csv` against the
-   Deezer and iTunes preview APIs and inserts it into the `songs` table):
+4. **Songs and puzzles.**
    ```bash
    npm run catalog:ingest
+   PUZZLE_BACKFILL_DAYS=21 npm run puzzles:generate
    ```
-   Songs that can't be resolved are written to `scripts/data/unresolved-songs.csv` for manual
-   follow-up. Grow the catalog over time by adding rows to `seed-song-list.csv` and re-running
-   this script.
-5. Generate the daily puzzle schedule (picks songs for the next 90 days, avoiding repeats):
-   ```bash
-   npm run puzzles:generate
-   ```
-6. Run the dev server:
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000).
+   `catalog:ingest` resolves `scripts/data/seed-song-list.csv` against Deezer and iTunes previews.
+   `puzzles:generate` schedules 90 days ahead (and optionally backfills past days on an empty
+   schedule), then pre-cuts each puzzle's 9-second snippet with ffmpeg.
+5. **Run.** `npm run dev`, then open http://localhost:3000.
 
-## Key scripts
+## Scripts
 
 | Script | Purpose |
 | --- | --- |
-| `npm run catalog:ingest` | Resolve `scripts/data/seed-song-list.csv` against Deezer/iTunes and upsert into `songs` |
-| `npm run puzzles:generate` | Top up the `daily_puzzles` schedule (idempotent, deterministic) |
-| `npm run db:push` | Push the Drizzle schema to the database (use `db:generate`/`db:migrate` for versioned migrations instead) |
-| `npm run db:studio` | Open Drizzle Studio to browse the database |
+| `npm test` | Unit tests (Vitest) for rules, stats, policy, cookies, MP3 slicing, BMC webhooks |
+| `npm run db:generate` / `db:migrate` | Create / apply versioned SQL migrations in `drizzle/` |
+| `npm run catalog:ingest` | Add songs from the seed CSV |
+| `npm run puzzles:generate` | Top up the schedule and cut missing snippet clips |
+| `npm run clips:prepare` | Only cut missing snippet clips |
+| `npx tsx scripts/send-test-webhook.ts <email>` | Send a signed test BMC membership webhook to the local app |
 
-## Architecture notes
+## Going live
 
-- **Audio**: preview clips come from the Deezer public API (primary) and iTunes Search API
-  (fallback) — never Spotify, whose `preview_url` is deprecated for most apps. Clips are
-  streamed through `/api/audio/[date]` (date-scoped, not song-id-scoped) so the underlying
-  song's identity is never exposed via a client-visible URL.
-  **Note:** Deezer's catalog is geo-blocked for requests from India (`data: []` despite a
-  nonzero `total` in search results) — if you run `catalog:ingest` from an Indian IP, every
-  song will resolve via the iTunes fallback instead, which works fine and is what happened for
-  the initial 39-song seed catalog. This isn't a problem for the deployed app itself (Vercel's
-  infra isn't India-based), only for local ingestion runs.
-- **Anti-cheat**: daily puzzles are generated ahead of time by `scripts/generate-puzzles.ts`,
-  not computed live from a client-derivable seed. Guess correctness is always validated
-  server-side in `lib/puzzle-service.ts`.
-- **Identity**: anonymous, device-id based (a UUID in `localStorage`) — no login required for
-  the MVP. See `lib/hooks/useDeviceId.ts`.
-
-## Deploying
-
-Deploy to [Vercel](https://vercel.com/new). Set the same env vars as `.env.example` in the
-project settings, and Vercel will pick up the cron job defined in `vercel.json`
-(`/api/cron/ensure-puzzles`, daily) automatically.
+1. Provision Postgres (e.g. Neon) and run `npm run db:migrate` against it.
+2. Deploy to Vercel with every variable from `.env.example`. `BETTER_AUTH_URL` must be the public https origin.
+3. **Google sign-in**: create an OAuth client with redirect URI `https://<domain>/api/auth/callback/google`.
+4. **Email**: verify your domain in Resend and set `EMAIL_FROM` on it.
+5. **Buy Me a Coffee**: create a monthly membership, add a webhook to `https://<domain>/api/webhooks/bmc`
+   for membership events, copy its secret into `BMC_WEBHOOK_SECRET`, and send a test event. Its
+   payload should show `data.supporter_email` and `data.current_period_end` (see `lib/billing/bmc.ts`).
+6. **AdSense**: once approved, set the client and slot ids, then configure the consent message in
+   AdSense → Privacy & messaging. `/ads.txt` is generated from the client id.
+7. Run `puzzles:generate` against production from a machine with ffmpeg access (the npm package bundles it).
+   Vercel Cron calls `/api/cron/ensure-puzzles` daily to report a low horizon or missing clips.

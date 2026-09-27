@@ -2,6 +2,8 @@ import "./load-env";
 import { db } from "../lib/db";
 import { songs, dailyPuzzles } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { addDays, todayInTz } from "../lib/date";
+import { prepareMissingClips } from "./prepare-clips";
 
 // How many days ahead the puzzle horizon should be kept topped up.
 const DEFAULT_HORIZON_DAYS = 90;
@@ -49,19 +51,22 @@ async function main() {
   const existingDates = new Set(existing.map((r) => r.date));
   const maxPuzzleNumber = existing.reduce((max, r) => Math.max(max, r.puzzleNumber), 0);
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  // Puzzle days follow PUZZLE_TIMEZONE. PUZZLE_BACKFILL_DAYS (default 0) also
+  // fills past days, giving a fresh database an archive to browse; it only
+  // applies to an empty schedule, so numbering always follows date order.
+  const todayStr = todayInTz();
+  const today = new Date(`${todayStr}T00:00:00Z`);
+  const backfillDays = existing.length === 0 ? Number(process.env.PUZZLE_BACKFILL_DAYS ?? 0) : 0;
 
   const targetDates: string[] = [];
-  for (let i = 0; i < horizonDays; i++) {
-    const d = new Date(today);
-    d.setUTCDate(d.getUTCDate() + i);
-    const ds = toDateString(d);
+  for (let i = -backfillDays; i < horizonDays; i++) {
+    const ds = addDays(todayStr, i);
     if (!existingDates.has(ds)) targetDates.push(ds);
   }
 
   if (targetDates.length === 0) {
-    console.log(`Puzzle horizon already covers the next ${horizonDays} days. Nothing to do.`);
+    console.log(`Puzzle horizon already covers the next ${horizonDays} days.`);
+    await reportClips();
     return;
   }
 
@@ -102,6 +107,12 @@ async function main() {
   await db.insert(dailyPuzzles).values(rowsToInsert);
 
   console.log(`Generated ${rowsToInsert.length} puzzles from ${targetDates[0]} to ${targetDates[targetDates.length - 1]}.`);
+  await reportClips();
+}
+
+async function reportClips() {
+  const { prepared, failed } = await prepareMissingClips();
+  console.log(`Prepared ${prepared} snippet clips.${failed.length ? ` Failed for: ${failed.join(", ")}` : ""}`);
 }
 
 main()

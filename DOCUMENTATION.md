@@ -164,3 +164,48 @@ diagnostics:
 5. **Phase 4 (deploy)** — push to GitHub, connect to Vercel, provision a production Postgres
    (Neon recommended), set env vars, run `db:push`/ingestion/puzzle-generation against
    production, and confirm `vercel.json`'s cron job fires correctly.
+
+---
+
+## v2 (2026-09-27): reference-parity scoring, accounts and tiers, redesign, monetization
+
+Design: `docs/superpowers/specs/2026-09-27-premium-redesign-design.md`. Plan:
+`docs/superpowers/plans/2026-09-27-premium-redesign.md`.
+
+### Scoring replicated from guesstheaudio.com
+Read from the reference site's shipped game code: 6 guesses; snippets 0.4/1/2/5/7/9s; hints after
+each miss (length, year, genre, album, artist); a win on guess r scores `max(0, 6 − r + 1)`, a loss
+0; streaks run in puzzle order (loss resets, unplayed days don't); ranks by total wins at
+0, 5, 10 … 1300. The old 10,000-point budget and paid "+1s" extension were removed.
+Stats are now *derived* from attempt history (`lib/game/stats.ts`) rather than mutated
+incrementally, which also fixed archive plays corrupting streaks.
+
+### Security changes
+- Snippets are pre-cut offline into 9s CBR MP3 (`puzzle_clips`); `/api/puzzle/[date]/clip` returns
+  only the MP3 frames the viewer has unlocked. Previously the full 30s preview reached the browser.
+- The anonymous device id is now a server-issued HMAC-signed httpOnly cookie (`proxy.ts`), not a
+  client-chosen localStorage UUID sent in request bodies.
+- Guesses run in a transaction with a row lock (fixes lost updates on double-submit).
+- Nonce CSP, HSTS and friends; same-origin checks and Postgres-backed rate limits on mutations.
+- Puzzle days roll over at midnight IST (`PUZZLE_TIMEZONE`), and nothing day- or
+  identity-dependent is publicly cached (fixes the stale `/api/audio/today` cache bug).
+- Committed database credentials removed from the README.
+
+### Accounts, roles and tiers
+Better Auth (Google + passwordless email link, DB sessions). Role (`user`/`admin`) is separate
+from plan (`free`/`premium`); premium is an expiring `entitlements` row. All gates go through
+`can(viewer, capability)` in `lib/authz/policy.ts`. Guest games merge into the account on sign-in.
+
+### Premium via Buy Me a Coffee
+Signed webhooks (`/api/webhooks/bmc`, HMAC-SHA256, idempotent via `webhook_events`) grant Premium to
+the account with the matching *verified* email. Secondary emails must be confirmed by link before
+they can claim a membership. Admins can grant/revoke manually; everything is audited.
+
+### UI
+"Filmi night" theme (Rozha One + Manrope; marigold, rani pink, peacock), a React Three Fiber
+equalizer field behind every page that ripples under the cursor and dances to the clip through a
+Web Audio analyser, and a vinyl play button. Static fallback for reduced motion / no WebGL.
+
+### Verification
+`npm test` (unit tests), `tsc`, ESLint and `next build` all pass. See the end of this log for the
+runtime pass.
