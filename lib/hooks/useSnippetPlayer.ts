@@ -1,105 +1,143 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { registerAnalyser, setAudioPlaying } from "@/components/stage/audio-reactive";
 
-interface UseSnippetPlayerOptions {
-  src: string;
-  snippetDurationSec: number;
+interface Options {
+  src: string; // changes whenever the unlocked audio changes
+  limitSeconds: number | null; // null = play the whole clip
 }
 
-interface UseSnippetPlayerResult {
-  isPlaying: boolean;
-  progress: number; // 0..1 within the current snippet
-  isReady: boolean;
-  play: () => void;
+export interface SnippetPlayer {
+  status: "loading" | "ready" | "playing" | "error";
+  progressSeconds: number;
+  toggle: () => void;
 }
 
-export function useSnippetPlayer({
-  src,
-  snippetDurationSec,
-}: UseSnippetPlayerOptions): UseSnippetPlayerResult {
+// One <audio> element for the component's lifetime (a MediaElementSource
+// can only be attached once), fed from a Blob of whatever the server
+// unlocked, and routed through an AnalyserNode that drives the 3D stage.
+export function useSnippetPlayer({ src, limitSeconds }: Options): SnippetPlayer {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [isReady, setIsReady] = useState(false);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const rafRef = useRef<number>(0);
+  const limitRef = useRef(limitSeconds);
+  const [readySrc, setReadySrc] = useState<string | null>(null);
+  const [errorSrc, setErrorSrc] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progressSeconds, setProgress] = useState(0);
 
-  // Kept in a ref (not just a closure over the prop) so the timeupdate
-  // handler registered in the effect below always sees the latest snippet
-  // duration, even though the effect itself only re-runs when `src` changes.
-  const durationRef = useRef(snippetDurationSec);
-  useEffect(() => {
-    durationRef.current = snippetDurationSec;
-  }, [snippetDurationSec]);
+  const status: SnippetPlayer["status"] = playing
+    ? "playing"
+    : errorSrc === src
+      ? "error"
+      : readySrc === src
+        ? "ready"
+        : "loading";
 
   useEffect(() => {
-    let cancelled = false;
+    limitRef.current = limitSeconds;
+  }, [limitSeconds]);
+
+  const stop = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    setAudioPlaying(false);
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    setPlaying(false);
+    setProgress(0);
+  }, []);
+
+  useEffect(() => {
+    if (!audioRef.current) audioRef.current = new Audio();
+    const audio = audioRef.current;
+    const controller = new AbortController();
     let objectUrl: string | null = null;
-    const audio = new Audio();
-    audioRef.current = audio;
-    queueMicrotask(() => {
-      setIsReady(false);
-      setProgress(0);
-    });
 
-    const handleTimeUpdate = () => {
-      const duration = durationRef.current;
-      if (audio.currentTime >= duration) {
-        audio.pause();
-        audio.currentTime = 0;
-        setIsPlaying(false);
-        setProgress(0);
-        return;
-      }
-      setProgress(Math.min(1, audio.currentTime / duration));
-    };
-    const handleEnded = () => {
-      setIsPlaying(false);
-      setProgress(0);
-    };
-
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("ended", handleEnded);
-
-    // Fetch the (small, ~1MB) preview clip as a blob and play it from an
-    // object URL, rather than pointing the <audio> element's `src` directly
-    // at the network endpoint. This sidesteps browser-specific quirks in
-    // how <audio> elements negotiate range requests/preloading over the
-    // network — the element only ever deals with fully-local data.
-    fetch(src)
+    fetch(src, { signal: controller.signal, cache: "no-store" })
       .then((res) => {
-        if (!res.ok) throw new Error(`Failed to load audio (${res.status})`);
+        if (!res.ok) throw new Error(`clip ${res.status}`);
         return res.blob();
       })
       .then((blob) => {
-        if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
         audio.src = objectUrl;
-        setIsReady(true);
+        audio.load();
+        setReadySrc(src);
       })
-      .catch(() => {
-        if (!cancelled) setIsReady(false);
+      .catch((err: Error) => {
+        if (err.name !== "AbortError") setErrorSrc(src);
       });
 
+    audio.addEventListener("ended", stop);
     return () => {
-      cancelled = true;
-      audio.pause();
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("ended", handleEnded);
+      controller.abort();
+      audio.removeEventListener("ended", stop);
+      stop();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
-      audioRef.current = null;
     };
-  }, [src]);
+  }, [src, stop]);
 
-  const play = useCallback(() => {
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(rafRef.current);
+      setAudioPlaying(false);
+      registerAnalyser(null);
+      void ctxRef.current?.close();
+    },
+    [],
+  );
+
+  const toggle = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
+    if (status === "playing") {
+      stop();
+      return;
+    }
+    if (status !== "ready") return;
+
+    // The AudioContext must be created inside a user gesture.
+    if (!ctxRef.current) {
+      try {
+        const ctx = new AudioContext();
+        const source = ctx.createMediaElementSource(audio);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.72;
+        source.connect(analyser);
+        analyser.connect(ctx.destination);
+        ctxRef.current = ctx;
+        registerAnalyser(analyser);
+      } catch {
+        // No Web Audio: playback still works, the stage just won't dance.
+      }
+    }
+    void ctxRef.current?.resume();
+
+    const loop = () => {
+      const limit = limitRef.current;
+      if (limit !== null && audio.currentTime >= limit) {
+        stop();
+        return;
+      }
+      setProgress(audio.currentTime);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+
     audio.currentTime = 0;
-    setProgress(0);
     audio
       .play()
-      .then(() => setIsPlaying(true))
-      .catch(() => setIsPlaying(false));
-  }, []);
+      .then(() => {
+        setPlaying(true);
+        setAudioPlaying(true);
+        rafRef.current = requestAnimationFrame(loop);
+      })
+      .catch(() => setErrorSrc(src));
+  }, [status, stop, src]);
 
-  return { isPlaying, progress, isReady, play };
+  return { status, progressSeconds, toggle };
 }

@@ -1,26 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { buildPuzzleShell } from "@/lib/puzzle-service";
-import { isFutureDate, isValidDateString, resolveDateParam } from "@/lib/date";
+import { getViewer } from "@/lib/viewer";
+import { getPuzzleShell } from "@/lib/services/puzzles";
+import { resolvePuzzleDate } from "@/lib/services/access";
+import { jsonError, jsonOk } from "@/lib/http";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ date: string }> },
-) {
-  const { date: rawDate } = await params;
-  const date = resolveDateParam(rawDate);
-  const deviceId = req.nextUrl.searchParams.get("deviceId");
+export async function GET(_req: Request, { params }: { params: Promise<{ date: string }> }) {
+  const viewer = await getViewer();
+  const gate = resolvePuzzleDate(viewer, (await params).date);
+  if (!gate.ok) return gate.response;
 
-  if (!isValidDateString(date)) {
-    return NextResponse.json({ error: "Invalid date." }, { status: 400 });
-  }
-  if (isFutureDate(date)) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
-  }
-
-  const shell = await buildPuzzleShell(date, deviceId);
-  if (!shell) {
-    return NextResponse.json({ error: "No puzzle for this date." }, { status: 404 });
-  }
-
-  return NextResponse.json(shell);
+  const shell = await getPuzzleShell(viewer, gate.date);
+  if (!shell) return jsonError("NO_PUZZLE", 404);
+  return jsonOk(shell);
 }

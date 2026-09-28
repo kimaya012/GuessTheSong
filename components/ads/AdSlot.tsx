@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useAdsEnabled } from "./AdsProvider";
 
 declare global {
   interface Window {
@@ -8,45 +9,45 @@ declare global {
   }
 }
 
-interface AdSlotProps {
-  slotId: string;
-  className?: string;
-}
+type Placement = "result" | "archive" | "stats";
 
-// Thin, togglable wrapper: renders nothing until an AdSense publisher id is
-// configured, so ad markup doesn't ship before the account is approved.
-// Each mounted unit has to be individually pushed to the adsbygoogle queue —
-// the global script tag (loaded once in the root layout) only sets up the
-// library, it doesn't auto-initialize units added by client-side navigation.
-export function AdSlot({ slotId, className }: AdSlotProps) {
+const SLOT_IDS: Record<Placement, string | undefined> = {
+  result: process.env.NEXT_PUBLIC_ADSENSE_SLOT_RESULT,
+  archive: process.env.NEXT_PUBLIC_ADSENSE_SLOT_ARCHIVE,
+  stats: process.env.NEXT_PUBLIC_ADSENSE_SLOT_STATS,
+};
+
+// Renders nothing for ad-free viewers or before AdSense is configured.
+// Reserves its height up front so the ad loading in doesn't shift layout.
+export function AdSlot({ placement, className }: { placement: Placement; className?: string }) {
+  const enabled = useAdsEnabled();
   const clientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
-  const insRef = useRef<HTMLModElement>(null);
+  const slotId = SLOT_IDS[placement];
   const pushed = useRef(false);
 
   useEffect(() => {
-    if (!clientId || pushed.current) return;
+    if (!enabled || !clientId || !slotId || pushed.current) return;
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
       pushed.current = true;
     } catch {
-      // AdSense script hasn't loaded yet or blocked (ad blocker) — silently
-      // skip, the slot just stays empty.
+      // Blocked or not loaded yet — the reserved space simply stays empty.
     }
-  }, [clientId]);
+  }, [enabled, clientId, slotId]);
 
-  if (!clientId) return null;
+  if (!enabled || !clientId || !slotId) return null;
 
   return (
-    <div className={className} data-ad-slot={slotId}>
+    <aside aria-label="Advertisement" className={className}>
+      <p className="mb-1 text-center text-[11px] text-muted-foreground/70">Advertisement</p>
       <ins
-        ref={insRef}
-        className="adsbygoogle"
+        className="adsbygoogle block min-h-[100px] overflow-hidden rounded-xl"
         style={{ display: "block" }}
         data-ad-client={clientId}
         data-ad-slot={slotId}
         data-ad-format="auto"
         data-full-width-responsive="true"
       />
-    </div>
+    </aside>
   );
 }
