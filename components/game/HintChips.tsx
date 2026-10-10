@@ -4,9 +4,9 @@ import type { HintKey, PuzzleShell } from "./types";
 const HINTS: { key: HintKey; label: string }[] = [
   { key: "length", label: "Length" },
   { key: "releaseYear", label: "Released" },
-  { key: "genre", label: "Mood" },
-  { key: "album", label: "Film" },
-  { key: "artist", label: "Singer" },
+  { key: "genre", label: "Vibe" },
+  { key: "album", label: "From" },
+  { key: "artist", label: "Artist" },
 ];
 
 export function HintChips({ hints }: { hints: PuzzleShell["hints"] }) {
