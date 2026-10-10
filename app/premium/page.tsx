@@ -12,7 +12,7 @@ const PERKS: { label: string; free: string | boolean; premium: string | boolean 
   { label: "Today's song", free: true, premium: true },
   { label: "Archive", free: `Last ${ARCHIVE_FREE_DAYS} days`, premium: "Every past song" },
   { label: "Stats saved to your account", free: true, premium: true },
-  { label: "Stats by decade and mood", free: false, premium: true },
+  { label: "Stats by decade and vibe", free: false, premium: true },
   { label: "Ads", free: "Shown", premium: "None, ever" },
   { label: "Crown on your share card", free: false, premium: true },
 ];

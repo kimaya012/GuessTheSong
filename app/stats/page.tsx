@@ -118,7 +118,7 @@ export default async function StatsPage() {
         {deep ? (
           <div className="mt-5 grid gap-8 sm:grid-cols-2">
             <Buckets title="Win rate by decade" buckets={deep.byDecade} />
-            <Buckets title="Win rate by mood" buckets={deep.byGenre} />
+            <Buckets title="Win rate by vibe" buckets={deep.byGenre} />
             <p className="text-sm text-muted-foreground sm:col-span-2">
               Median time to solve:{" "}
               <span className="font-semibold text-foreground">
@@ -134,7 +134,7 @@ export default async function StatsPage() {
               ))}
             </div>
             <p className="mt-5 flex items-center gap-2 text-muted-foreground">
-              <Lock className="h-4 w-4" /> See which decades and moods you know best with Premium.
+              <Lock className="h-4 w-4" /> See which decades and vibes you know best with Premium.
             </p>
             <Link href="/premium" className="mt-4 inline-flex rounded-full bg-marigold px-5 py-2.5 font-bold text-primary-foreground">
               See Premium
