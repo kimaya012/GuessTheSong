@@ -5,6 +5,7 @@ import {
   nextState,
   pointsFor,
   snippetSecondsFor,
+  visibleGuessRows,
   type GuessRecord,
 } from "@/lib/game/rules";
 import { RANKS, rankForWins } from "@/lib/game/ranks";
@@ -78,5 +79,20 @@ describe("ranks (by total wins)", () => {
     expect(rankForWins(7).winsToNext).toBe(3);
     expect(rankForWins(1300).next).toBeNull();
     expect(rankForWins(1300).winsToNext).toBeNull();
+  });
+});
+
+describe("visibleGuessRows", () => {
+  it("starts with one row and adds one per guess while playing", () => {
+    expect([0, 1, 2, 3, 4, 5].map((n) => visibleGuessRows(n, "playing"))).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+  it("shows only the guesses used once the game is over", () => {
+    expect(visibleGuessRows(3, "won")).toBe(3);
+    expect(visibleGuessRows(6, "lost")).toBe(6);
+    expect(visibleGuessRows(2, "lost")).toBe(2); // gave up early
+  });
+  it("never exceeds the maximum number of guesses", () => {
+    expect(visibleGuessRows(6, "playing")).toBe(6);
+    expect(visibleGuessRows(9, "playing")).toBe(6);
   });
 });
