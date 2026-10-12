@@ -31,11 +31,11 @@ export default async function ArchivePuzzlePage({ params }: Params) {
   const { PUZZLE_TIMEZONE, BETTER_AUTH_URL } = env();
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-4 sm:py-6">
       <Link href="/archive" className="text-sm font-semibold text-peacock hover:underline">
         Back to the archive
       </Link>
-      <div className="mt-4">
+      <div className="mt-2">
         {access === "premium_required" ? (
           // Decided on the server: the puzzle data is never sent to this viewer.
           <div className="panel rounded-3xl p-8 text-center">

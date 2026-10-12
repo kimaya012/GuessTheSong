@@ -108,10 +108,10 @@ export function GameBoard({ date, isToday, timezone, shareUrl, premium }: GameBo
       : null;
 
   return (
-    <TiltCard className="rounded-3xl p-5 sm:p-8">
-      <div className="mb-6 flex items-center justify-between gap-3">
+    <TiltCard className="rounded-3xl p-4 sm:p-6">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="font-display text-3xl leading-none">Song #{shell.puzzleNumber}</p>
+          <p className="font-display text-2xl leading-none sm:text-3xl">Song #{shell.puzzleNumber}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {isToday
               ? "Today's puzzle"
@@ -128,7 +128,7 @@ export function GameBoard({ date, isToday, timezone, shareUrl, premium }: GameBo
         completed={completed}
       />
 
-      <div className="mt-7 grid grid-cols-1 gap-6">
+      <div className="mt-4 grid grid-cols-1 gap-4">
         <HintChips hints={shell.hints} />
         <GuessList guesses={shell.guesses} maxGuesses={shell.maxGuesses} active={!completed} />
 

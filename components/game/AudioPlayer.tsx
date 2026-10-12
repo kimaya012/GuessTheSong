@@ -47,13 +47,13 @@ export function AudioPlayer({ clipUrl, snippetSeconds, schedule, completed }: Au
   const timeline = completed ? Math.max(TIMELINE_SECONDS, progressSeconds) : TIMELINE_SECONDS;
 
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className="flex flex-col items-center gap-3">
       <button
         type="button"
         onClick={toggle}
         disabled={status === "loading" || status === "error"}
         aria-label={playing ? "Stop the snippet" : `Play ${completed ? "the song" : `${snippetSeconds} seconds`}`}
-        className="group relative h-44 w-44 rounded-full shadow-[0_0_80px_-10px_rgb(255_46_136/0.55)] transition-transform duration-300 hover:scale-[1.03] focus-visible:outline-offset-4 disabled:cursor-wait sm:h-52 sm:w-52"
+        className="group relative size-[clamp(7rem,21vh,12rem)] rounded-full shadow-[0_0_80px_-10px_rgb(255_46_136/0.55)] transition-transform duration-300 hover:scale-[1.03] focus-visible:outline-offset-4 disabled:cursor-wait"
       >
         <Vinyl spinning={playing} />
         <span className="absolute inset-0 grid place-items-center">
@@ -91,7 +91,7 @@ export function AudioPlayer({ clipUrl, snippetSeconds, schedule, completed }: Au
               <span key={s} className="absolute inset-y-0 w-px bg-night/80" style={{ left: `${(s / timeline) * 100}%` }} />
             ))}
         </div>
-        <div className="mt-2 flex justify-between text-xs tabular-nums text-muted-foreground">
+        <div className="mt-1.5 flex justify-between text-xs tabular-nums text-muted-foreground">
           <span>{progressSeconds.toFixed(1)}s</span>
           <span>{completed ? "Full preview unlocked" : `${snippetSeconds}s unlocked`}</span>
         </div>

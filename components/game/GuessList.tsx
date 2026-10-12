@@ -1,5 +1,6 @@
 import { Check, Flag, SkipForward, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { visibleGuessRows } from "@/lib/game/rules";
 import type { GuessRecord } from "./types";
 
 const STYLE: Record<GuessRecord["kind"], { row: string; icon: React.ReactNode; label: string }> = {
@@ -9,23 +10,32 @@ const STYLE: Record<GuessRecord["kind"], { row: string; icon: React.ReactNode; l
   giveup: { row: "bg-white/5 text-muted-foreground ring-white/10", icon: <Flag className="h-4 w-4" />, label: "Gave up" },
 };
 
-export function GuessList({ guesses, maxGuesses, active }: { guesses: GuessRecord[]; maxGuesses: number; active: boolean }) {
+interface GuessListProps {
+  guesses: GuessRecord[];
+  maxGuesses: number;
+  active: boolean;
+}
+
+// Shows only the guesses made plus the one being entered, so the list
+// starts at a single row and grows by one per guess instead of reserving
+// space for all six up front.
+export function GuessList({ guesses, maxGuesses, active }: GuessListProps) {
+  const rows = Math.min(visibleGuessRows(guesses.length, active ? "playing" : "lost"), maxGuesses);
+
   return (
     <ol className="grid grid-cols-1 gap-2" aria-label="Your guesses">
-      {Array.from({ length: maxGuesses }, (_, i) => {
+      {Array.from({ length: rows }, (_, i) => {
         const guess = guesses[i];
-        const current = active && i === guesses.length;
         if (!guess) {
+          // The row currently being filled in; it slides in when added.
           return (
             <li
               key={i}
-              className={cn(
-                "flex h-11 items-center gap-3 rounded-xl px-4 text-sm ring-1",
-                current ? "text-foreground ring-marigold/60" : "text-muted-foreground/50 ring-white/8",
-              )}
+              aria-current="step"
+              className="flex h-11 animate-in items-center gap-3 rounded-xl px-4 text-sm text-foreground ring-1 ring-marigold/60 duration-200 fade-in-0 slide-in-from-top-1 motion-reduce:animate-none"
             >
               <span className="w-4 text-center tabular-nums">{i + 1}</span>
-              <span>{current ? "Your guess" : ""}</span>
+              <span>Your guess</span>
             </li>
           );
         }
