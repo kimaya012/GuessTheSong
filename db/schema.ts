@@ -127,7 +127,7 @@ export const entitlements = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     email: text("email").notNull(),
-    source: text("source", { enum: ["bmc", "admin"] }).notNull(),
+    source: text("source", { enum: ["admin"] }).notNull(),
     externalRef: text("external_ref").notNull(),
     status: text("status", { enum: ["active", "cancelled", "expired"] }).notNull(),
     currentPeriodEnd: timestamptzCol("current_period_end").notNull(),
@@ -138,28 +138,6 @@ export const entitlements = pgTable(
     uniqueIndex("entitlements_external_ref_idx").on(table.source, table.externalRef),
     index("entitlements_user_idx").on(table.userId),
     index("entitlements_email_idx").on(table.email),
-  ],
-);
-
-// Extra emails a user has proven they own (e.g. the one they paid with on
-// Buy Me a Coffee). Only a hash of the verification token is stored.
-export const linkedEmails = pgTable(
-  "linked_emails",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    email: text("email").notNull(),
-    tokenHash: text("token_hash"),
-    tokenExpiresAt: timestamptzCol("token_expires_at"),
-    verifiedAt: timestamptzCol("verified_at"),
-    createdAt: timestamptzCol("created_at").notNull().defaultNow(),
-  },
-  (table) => [
-    uniqueIndex("linked_emails_user_email_idx").on(table.userId, table.email),
-    index("linked_emails_email_idx").on(table.email),
-    uniqueIndex("linked_emails_token_idx").on(table.tokenHash),
   ],
 );
 

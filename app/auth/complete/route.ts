@@ -5,14 +5,12 @@ import { user } from "@/db/schema";
 import { env } from "@/lib/env";
 import { getViewer } from "@/lib/viewer";
 import { mergeDeviceIntoUser } from "@/lib/services/puzzles";
-import { attachPendingEntitlements } from "@/lib/services/entitlements";
 import { writeAudit } from "@/lib/services/audit";
 import { safeNextPath } from "@/lib/safe-redirect";
 import { getAuth } from "@/lib/auth";
 
 // Landing point after every sign-in (magic link or Google): moves this
-// device's guest games onto the account, claims any Premium paid for with
-// the account's verified email, and promotes configured admin emails.
+// device's guest games onto the account and promotes configured admin emails.
 export async function GET(req: NextRequest) {
   const next = safeNextPath(req.nextUrl.searchParams.get("next"));
   const session = await getAuth().api.getSession({ headers: req.headers });
@@ -20,7 +18,6 @@ export async function GET(req: NextRequest) {
 
   const viewer = await getViewer();
   const moved = await mergeDeviceIntoUser(viewer.deviceId, session.user.id);
-  await attachPendingEntitlements(session.user.id);
 
   const email = session.user.email.toLowerCase();
   if (session.user.emailVerified && env().ADMIN_EMAILS.includes(email) && session.user.role !== "admin") {

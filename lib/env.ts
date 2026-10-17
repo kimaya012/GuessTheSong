@@ -33,8 +33,13 @@ const schema = z.object({
         .map((e) => e.trim().toLowerCase())
         .filter(Boolean),
     ),
-  BMC_WEBHOOK_SECRET: optional,
-  NEXT_PUBLIC_BMC_MEMBERSHIP_URL: optional,
+  // Premium is parked; set to "true" only when a payment path exists.
+  PREMIUM_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim().toLowerCase() === "true"),
+  // Shown in the footer and legal pages (e.g. for takedown requests).
+  NEXT_PUBLIC_CONTACT_EMAIL: optional,
   CRON_SECRET: optional,
   PUZZLE_TIMEZONE: z.string().default("Asia/Kolkata"),
   NEXT_PUBLIC_ADSENSE_CLIENT_ID: optional,
