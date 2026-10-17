@@ -15,6 +15,13 @@
       "when": 1792232743127,
       "tag": "0001_drop_linked_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792256965066,
+      "tag": "0002_player_names",
+      "breakpoints": true
     }
   ]
 }

@@ -141,6 +141,28 @@ export const entitlements = pgTable(
   ],
 );
 
+// A player's public name. Owned by a device while they are a guest and by
+// their account once they sign in; at most one name per owner. name_key is the
+// lowercased name, so uniqueness ignores case and the database settles races.
+export const playerNames = pgTable(
+  "player_names",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    nameKey: text("name_key").notNull(),
+    deviceId: uuid("device_id").references(() => userDevices.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamptzCol("created_at").notNull().defaultNow(),
+    changedAt: timestamptzCol("changed_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("player_names_name_key_idx").on(table.nameKey),
+    uniqueIndex("player_names_device_idx").on(table.deviceId),
+    uniqueIndex("player_names_user_idx").on(table.userId),
+    check("player_names_owner_check", sql`${table.deviceId} IS NOT NULL OR ${table.userId} IS NOT NULL`),
+  ],
+);
+
 export const webhookEvents = pgTable("webhook_events", {
   id: text("id").primaryKey(),
   provider: text("provider").notNull(),
