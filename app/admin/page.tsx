@@ -6,7 +6,8 @@ import { auditLog, entitlements, songs, user } from "@/db/schema";
 import { getViewer } from "@/lib/viewer";
 import { can } from "@/lib/authz/policy";
 import { env } from "@/lib/env";
-import { grantPremiumAction, revokePremiumAction, setRoleAction, toggleSongAction } from "./actions";
+import { getNamesForUsers } from "@/lib/services/names";
+import { clearNameAction, grantPremiumAction, revokePremiumAction, setRoleAction, toggleSongAction } from "./actions";
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false } };
 
@@ -44,6 +45,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           )
       : [];
   const premiumBy = new Map(premiumRows.map((r) => [r.userId, r]));
+  const names = await getNamesForUsers(users.map((u) => u.id));
 
   const [catalog, audits] = await Promise.all([
     db.select({ id: songs.id, title: songs.title, artist: songs.artist, active: songs.active }).from(songs).orderBy(songs.title),
@@ -73,6 +75,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             <thead className="text-left text-muted-foreground">
               <tr>
                 <th className="py-2 pr-3 font-medium">Email</th>
+                <th className="py-2 pr-3 font-medium">Name</th>
                 <th className="py-2 pr-3 font-medium">Role</th>
                 {premiumOn && <th className="py-2 pr-3 font-medium">Premium</th>}
                 {premiumOn && <th className="py-2 font-medium">Actions</th>}
@@ -86,6 +89,19 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                     <td className="py-3 pr-3">
                       <p className="font-medium">{u.email}</p>
                       <p className="text-xs text-muted-foreground">Joined {fmt(u.createdAt)}</p>
+                    </td>
+                    <td className="py-3 pr-3">
+                      {names.get(u.id) ? (
+                        <form action={clearNameAction} className="flex items-center gap-2">
+                          <input type="hidden" name="userId" value={u.id} />
+                          <span className="font-medium">{names.get(u.id)}</span>
+                          <button className="text-xs font-bold text-rani" title="Frees the name so the player can pick again">
+                            Clear
+                          </button>
+                        </form>
+                      ) : (
+                        <span className="text-muted-foreground">None</span>
+                      )}
                     </td>
                     <td className="py-3 pr-3">
                       <form action={setRoleAction} className="flex items-center gap-2">
@@ -143,7 +159,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               })}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={premiumOn ? 4 : 2} className="py-6 text-center text-muted-foreground">
+                  <td colSpan={premiumOn ? 5 : 3} className="py-6 text-center text-muted-foreground">
                     No players match that search.
                   </td>
                 </tr>
