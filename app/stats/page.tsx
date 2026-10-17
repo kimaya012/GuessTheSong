@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Crown, Lock } from "lucide-react";
+import { BarChart3, Lock } from "lucide-react";
 import { getViewer } from "@/lib/viewer";
 import { can } from "@/lib/authz/policy";
 import { getAttemptSummaries } from "@/lib/services/stats";
 import { deriveDeepStats, deriveStats, type StatBucket } from "@/lib/game/stats";
 import { RANKS } from "@/lib/game/ranks";
 import { AdSlot } from "@/components/ads/AdSlot";
+import { SignInNudge } from "@/components/auth/SignInNudge";
 
 export const metadata: Metadata = { title: "Your stats" };
 
@@ -113,7 +114,7 @@ export default async function StatsPage() {
 
       <section className="panel relative mt-6 overflow-hidden rounded-3xl p-6">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <Crown className="h-5 w-5 text-marigold" /> Deep stats
+          <BarChart3 className="h-5 w-5 text-marigold" /> Deep stats
         </h2>
         {deep ? (
           <div className="mt-5 grid gap-8 sm:grid-cols-2">
@@ -134,16 +135,26 @@ export default async function StatsPage() {
               ))}
             </div>
             <p className="mt-5 flex items-center gap-2 text-muted-foreground">
-              <Lock className="h-4 w-4" /> See which decades and vibes you know best with Premium.
+              <Lock className="h-4 w-4" /> Sign in, free, to see which decades and vibes you know best.
             </p>
-            <Link href="/premium" className="mt-4 inline-flex rounded-full bg-marigold px-5 py-2.5 font-bold text-primary-foreground">
-              See Premium
+            <Link href="/sign-in?next=/stats" className="mt-4 inline-flex rounded-full bg-marigold px-5 py-2.5 font-bold text-primary-foreground">
+              Sign in free
             </Link>
           </div>
         )}
       </section>
 
       <AdSlot placement="stats" className="mt-8" />
+
+      {!viewer.userId && (
+        // Stats stay visible to everyone; this just offers to keep them.
+        <SignInNudge
+          next="/stats"
+          storageKey="stats"
+          title="Keep your stats"
+          body="Sign in, free, to keep your streak on every device and unlock the decade and vibe breakdown."
+        />
+      )}
     </main>
   );
 }
