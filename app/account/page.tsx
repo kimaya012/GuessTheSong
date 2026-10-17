@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getViewer } from "@/lib/viewer";
+import { NamePicker } from "@/components/name/NamePicker";
 
 export const metadata: Metadata = { title: "Your account" };
 
@@ -14,7 +15,11 @@ export default async function AccountPage() {
       <h1 className="font-display text-5xl">Your account</h1>
       <p className="mt-2 text-muted-foreground">Signed in as {viewer.email}</p>
 
-      <section className="panel mt-8 rounded-3xl p-6">
+      <div className="mt-8">
+        <NamePicker variant="section" next="/account" />
+      </div>
+
+      <section className="panel mt-6 rounded-3xl p-6">
         <h2 className="text-lg font-semibold">Your games</h2>
         <p className="mt-2 text-muted-foreground">
           Your streak and stats follow you to every device you sign in on.

@@ -6,6 +6,7 @@ import { ExternalLink, Share2 } from "lucide-react";
 import { buildShareText } from "@/lib/game/share";
 import { Countdown } from "./Countdown";
 import { AdSlot } from "@/components/ads/AdSlot";
+import { NamePicker } from "@/components/name/NamePicker";
 import type { PlayerStats, PuzzleShell } from "./types";
 
 interface ResultShareCardProps {
@@ -138,6 +139,8 @@ export function ResultShareCard({ shell, shareUrl, premium, signedIn, timezone, 
           </p>
         </div>
       )}
+
+      <NamePicker variant="card" next={isToday ? "/" : `/archive/${shell.date}`} />
 
       {!signedIn && (
         // The moment a player has just finished a game is the right time to ask.

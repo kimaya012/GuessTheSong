@@ -8,6 +8,7 @@ import { deriveDeepStats, deriveStats, type StatBucket } from "@/lib/game/stats"
 import { RANKS } from "@/lib/game/ranks";
 import { AdSlot } from "@/components/ads/AdSlot";
 import { SignInNudge } from "@/components/auth/SignInNudge";
+import { NamePicker } from "@/components/name/NamePicker";
 
 export const metadata: Metadata = { title: "Your stats" };
 
@@ -64,7 +65,11 @@ export default async function StatsPage() {
         </p>
       )}
 
-      <section className="panel mt-8 rounded-3xl p-6">
+      <div className="mt-8">
+        <NamePicker variant="section" next="/stats" />
+      </div>
+
+      <section className="panel mt-6 rounded-3xl p-6">
         <p className="text-sm text-muted-foreground">Your rank</p>
         <p className="mt-1 font-display text-4xl text-marigold">{stats.rank.current.name}</p>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/8">
