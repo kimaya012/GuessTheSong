@@ -7,7 +7,7 @@ win 1 point (the same scoring as guesstheaudio.com).
 The game is free for everyone and supported by Google AdSense:
 
 - **Everyone**: today's song and the whole archive, with stats saved on this device.
-- **Signed in (free)**: stats that follow you to every device, plus the decade and vibe breakdown.
+- **Signed in (free)**: stats that follow you to every device, the decade and vibe breakdown, and the ability to change your public name.
 - **Premium** is parked. The code is dormant behind `PREMIUM_ENABLED` (see below).
 
 Architecture and decisions: [`docs/superpowers/specs/2026-09-27-premium-redesign-design.md`](docs/superpowers/specs/2026-09-27-premium-redesign-design.md)
@@ -81,6 +81,30 @@ and the roughly 140 KB clip per puzzle; a 2,000-song catalog is close to the 0.5
    every few weeks. `vercel.json` only schedules the daily `/api/cron/ensure-puzzles` check on
    Vercel; on another host, call that route daily with `Authorization: Bearer $CRON_SECRET`
    (for example from a scheduled GitHub Action).
+
+## Player names
+
+Players can pick a public name, shown on the stats and account pages and the header avatar (and on the
+leaderboard once there is one).
+
+- **Format:** plain letters and numbers (A-Z, a-z, 0-9), 3 to 20 characters, at least one letter. Names
+  made only of numbers or only of symbols are refused. Names are unique ignoring case.
+- **Who can set one:** anyone may claim a first name. It belongs to their device while they are a guest.
+  A guest cannot change it; signing in moves the name onto the account and unlocks one free change. After
+  that, a signed-in player must wait 7 days between changes (`NAME_CHANGE_COOLDOWN_DAYS` in
+  `lib/names/policy.ts`). If the account already has a name when a guest signs in, the account keeps its
+  name and the device name is freed.
+- **Suggestions:** `lib/names/generator.ts` builds names like `RangeelaTabla42` from Indian music and
+  cinema words. Edit the two word lists freely; the tests run every pairing through the format rules and
+  the blocklist.
+- **Moderation:** `lib/names/blocklist.ts` is a conservative **starter** list (English and romanised
+  Hindi) plus reserved, official-sounding names. It stays short on purpose, because short words wrongly
+  reject real names such as Kshitij, Nazia or Randhir. No blocklist is complete, so admins can clear a
+  name from `/admin` (the player can then pick again, and the action is audit-logged). Extend the list as
+  you see abuse.
+- **Abuse limits:** claims are rate-limited per device and per network address.
+- **Not built yet:** names claimed by guests whose cookies are lost stay reserved; a periodic cleanup of
+  long-inactive guest names and a "report this name" button are good follow-ups.
 
 ## Premium (parked)
 
