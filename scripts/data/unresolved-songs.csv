@@ -1,20 +1,89 @@
-title,artist,hint_album,hint_year,hint_genre
-Malhari,Vishal Dadlani,Bajirao Mastani,2015,Dance
-Barso Re,Shreya Ghoshal,Guru,2007,Dance
-Bole Chudiyan,Amit Kumar,Kabhi Khushi Kabhie Gham,2001,Wedding
-Tum Hi Ho Bandhu,Pritam,Cocktail,2012,Friendship
-Desi Girl,Sunidhi Chauhan,Dostana,2008,Dance
-Emosanal Atyachar,Rajesh Sharma,Dev D,2009,Dance
-Kolaveri Di,Dhanush,3,2011,Comedy
-Zinda Hoon Yaar,Vishal Dadlani,Ludo,2020,Dance
-Ye Jawaani Hai Deewani Title,Pritam,Yeh Jawaani Hai Deewani,2013,Youth
-Tera Hone Laga Hoon,Atif Aslam,Ajab Prem Ki Ghazab Kahani,2009,Romantic
-Arjan Vailly,Vishal Mishra,Animal,2023,Dance
-Barbaad,Vishal Mishra,Crakk,2024,Romantic
-Naram Kaljyi,A.R. Rahman,Amar Singh Chamkila,2024,Punjabi Folk
-Sadda Haq,Mohit Chauhan,Rockstar,2011,Rock
-Tum Ho,Mohit Chauhan,Rockstar,2011,Romantic
-Baawre,Amit Trivedi,Luv Shuv Tey Chicken Khurana,2012,Folk Fusion
-Qismat,Ammy Virk,Qismat,2018,Punjabi
-Ishare Tere,B Praak,Ishare Tere,2021,Punjabi
-Excuses,AP Dhillon,Excuses,2021,Punjabi Pop
+title,artist,hint_album,hint_year,hint_genre,reason
+Kal Ho Naa Ho Title,Shankar Mahadevan,Kal Ho Naa Ho,2003,Romantic,no matching track with a preview
+Emosanal Atyachar,Rajesh Sharma,Dev D,2009,Dance,no matching track with a preview
+Zinda Hoon Yaar,Vishal Dadlani,Ludo,2020,Dance,no matching track with a preview
+Arjan Vailly,Vishal Mishra,Animal,2023,Dance,no matching track with a preview
+Barbaad,Vishal Mishra,Crakk,2024,Romantic,no matching track with a preview
+Baaja,A.R. Rahman,Amar Singh Chamkila,2024,Punjabi Folk,no matching track with a preview
+Baawre,Amit Trivedi,Luv Shuv Tey Chicken Khurana,2012,Folk Fusion,no matching track with a preview
+Rangi Saari,Shreya Ghoshal,Gangubai Kathiawadi,2022,Sufi,no matching track with a preview
+Filhaal,B Praak,Filhaal,2019,Punjabi,no matching track with a preview
+Ishare Tere,B Praak,Ishare Tere,2021,Punjabi,no matching track with a preview
+Challa,A.R. Rahman,Jab Tak Hai Jaan,2012,Dance,no matching track with a preview
+Chammak Challo,Vishal-Shekhar,Ra-One,2011,Party,no matching track with a preview
+Samjhawan,Jawad Ahmad,Humpty Sharma Ki Dulhania,2014,Soft,no matching track with a preview
+Saadi Galli Aaja,Rochak Kohli,Nautanki Saala !,2013,Dance,no matching track with a preview
+Lovely,Vishal-Shekhar,Happy New Year,2014,Hip-Hop,no matching track with a preview
+Sooraj Dooba Hain,Amaal Mallik,Roy,2015,Melodic,no matching track with a preview
+Aaj Se Teri,Amit Trivedi,Padman,2017,Melodic,no matching track with a preview
+Gojira,Ikka,Blood Is Better Than Tears,2024,Hip-Hop,no matching track with a preview
+BEEN ON,Frappe Ash,Ice Cream Frappe,2025,Hip-Hop,no matching track with a preview
+Sensitive,KR$NA,Yours Truly,2025,Hip-Hop,no matching track with a preview
+Dogs & Snakes,Ikka,FUBU,2025,Hip-Hop,no matching track with a preview
+Crash Out,Encore ABJ,EE,2026,Hip-Hop,no matching track with a preview
+Pahiye,Panther,Dhoom V,2025,Hip-Hop,no matching track with a preview
+Madira,Seedhe Maut,DL91 FM,2025,Hip-Hop,no matching track with a preview
+Triple OG,DIVINE,Triple OG,2024,Hip-Hop,no matching track with a preview
+BAAWE,Raftaar,HARD DRIVE Vol. 2,2024,Hip-Hop,no matching track with a preview
+Millionaire,Yo Yo Honey Singh,GLORY,2024,Hip-Hop,no matching track with a preview
+F*CK WHAT THEY SAY,King,MONOPOLY MOVES,2024,Hip-Hop,no matching track with a preview
+Shut Up,KR$NA,For The Day One$,2024,Hip-Hop,no matching track with a preview
+Kaun Talha,Talha Anjum,Kaun Talha,2024,Hip-Hop,no matching track with a preview
+REFUNDS,Umair,ROCKSTAR WITHOUT A GUITAR,2024,Hip-Hop,no matching track with a preview
+BAWE MAIN CHECK,King,BAWE MAIN CHECK,2024,Hip-Hop,no matching track with a preview
+FELONY,Umair,ROCKSTAR WITHOUT A GUITAR,2024,Hip-Hop,no matching track with a preview
+Hola Amigo,KR$NA,FAR FROM OVER,2023,Hip-Hop,no matching track with a preview
+Noise Complaint,Umer Anjum,Against All Odds,2024,Hip-Hop,no matching track with a preview
+SHUTDOWN,Seedhe Maut,SHUTDOWN,2024,Hip-Hop,no matching track with a preview
+Khatta Flow,Seedhe Maut,Lunch Break,2023,Hip-Hop,no matching track with a preview
+Luka Chippi,Seedhe Maut,Lunch Break,2023,Hip-Hop,no matching track with a preview
+Woh Raat,Raftaar,Woh Raat,2023,Hip-Hop,no matching track with a preview
+Downers At Dusk,Talha Anjum,Open Letter,2023,Hip-Hop,no matching track with a preview
+Galat Karam,Panther,Galat Karam,2023,Hip-Hop,no matching track with a preview
+Happy Hour,Talha Anjum,Open Letter,2023,Hip-Hop,no matching track with a preview
+Narmahat Freestyle,Karma,Narmahat Freestyle,2022,Hip-Hop,no matching track with a preview
+Maharani,Karun,Qabool Hai (Deluxe),2022,Hip-Hop,no matching track with a preview
+Death Wish,Talha Anjum,Worth The Wait,2022,Hip-Hop,no matching track with a preview
+3:59 AM,DIVINE,Punya Paap,2020,Hip-Hop,no matching track with a preview
+Satya,DIVINE,Punya Paap,2020,Hip-Hop,no matching track with a preview
+Gaanewale Rapper,Ikka,I,2020,Hip-Hop,no matching track with a preview
+GANGNUM,Raftaar,HARD DRIVE Vol. 1,2022,Hip-Hop,no matching track with a preview
+Saza-E-Maut,KR$NA,Still Here,2021,Hip-Hop,no matching track with a preview
+Baap Se,Fotty Seven,Asli Independent,2020,Hip-Hop,no matching track with a preview
+Pain Killers,Talha Anjum,Pain Killers,2022,Hip-Hop,no matching track with a preview
+Kaafizyada,Nanku,Nanku Sharma,2020,Hip-Hop,no matching track with a preview
+Bandish,Jokhay,Bandish,2020,Hip-Hop,no matching track with a preview
+12 Bajay,Talhah Yunus,12 Bajay,2020,Hip-Hop,no matching track with a preview
+101,Seedhe Maut,101,2019,Hip-Hop,no matching track with a preview
+Quarantine,Young Stunners,Quarantine,2020,Hip-Hop,no matching track with a preview
+Tadipaar,MC STAN,Tadipaar,2020,Hip-Hop,no matching track with a preview
+MMM,Seedhe Maut,MMM,2020,Hip-Hop,no matching track with a preview
+Soch,MC Altaf,Soch,2021,Hip-Hop,no matching track with a preview
+Hosh Mai Aa,MC STAN,Tadipaar,2020,Hip-Hop,no matching track with a preview
+Lonely,Emiway Bantai,Lonely,2020,Hip-Hop,no matching track with a preview
+Ek Din Pyaar,MC STAN,Tadipaar,2020,Hip-Hop,no matching track with a preview
+Introduction,Faris Shafi,Introduction,2021,Hip-Hop,no matching track with a preview
+Shayar,Jokhay,Shayar,2021,Hip-Hop,no matching track with a preview
+Bitch I Am a God,Muhfaad,Bitch I Am a God,2020,Hip-Hop,no matching track with a preview
+RAASHAH,Raftaar,HARD DRIVE Vol. 1,2022,Hip-Hop,no matching track with a preview
+MAFIIA,King,The Carnival,2020,Hip-Hop,no matching track with a preview
+Tony Montana,Karma,Tony Montana,2022,Hip-Hop,no matching track with a preview
+Pagal Hai Kya,Fotty Seven,Pagal Hai Kya,2018,Hip-Hop,no matching track with a preview
+IICONIC,King,The Carnival,2020,Hip-Hop,no matching track with a preview
+Kab Tak,Jokhay,Kab Tak,2022,Hip-Hop,no matching track with a preview
+100 Bars,Talha Anjum,100 Bars,2020,Hip-Hop,no matching track with a preview
+Gauntlet 2.0,Rap Demon,Gauntlet 2.0,2019,Hip-Hop,no matching track with a preview
+36,Raftaar,HARD DRIVE Vol. 1,2022,Hip-Hop,no matching track with a preview
+Beparwah,Sikander Kahlon,PRE SK,2020,Hip-Hop,no matching track with a preview
+03 am in 6ix,JJ47,Talk To You Later,2023,Hip-Hop,no matching track with a preview
+Samurai,Kidshot,The Come Up,2023,Hip-Hop,no matching track with a preview
+Asal G,Seedhe Maut,Lunch Break,2023,Hip-Hop,no matching track with a preview
+Two Tone,Young Stunners,Two Tone,2023,Hip-Hop,no matching track with a preview
+Parday,JJ47,Talk To You Later,2023,Hip-Hop,no matching track with a preview
+Nawazuddin,Seedhe Maut,न,2021,Hip-Hop,no matching track with a preview
+Nanchaku,Seedhe Maut,Nanchaku,2021,Hip-Hop,no matching track with a preview
+Angaar,Ikka,I,2020,Hip-Hop,no matching track with a preview
+Bandana Gang,DIVINE,SHUTDOWN,2020,Hip-Hop,no matching track with a preview
+Kaha Tak,KR$NA,Time Will Tell,2023,Hip-Hop,no matching track with a preview
+Kaisa Ye Raaz Hai,Pranaay,RAAZ - The Mystery Continues,2008,Heartbreak,no matching track with a preview
+Maula Maula,Rafaquat Ali Khan,Awarapan,2007,Heartbreak,no matching track with a preview
