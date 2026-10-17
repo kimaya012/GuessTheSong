@@ -7,7 +7,7 @@ import { jsonError } from "@/lib/http";
 // who is asking, so it must never be cached publicly.
 export async function GET(_req: Request, { params }: { params: Promise<{ date: string }> }) {
   const viewer = await getViewer();
-  const gate = resolvePuzzleDate(viewer, (await params).date);
+  const gate = resolvePuzzleDate((await params).date);
   if (!gate.ok) return gate.response;
 
   const clip = await getClip(viewer, gate.date);

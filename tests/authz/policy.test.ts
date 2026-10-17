@@ -7,13 +7,11 @@ const free: Viewer = { ...guest, userId: "u1", email: "a@b.c", role: "user" };
 const premium: Viewer = { ...free, plan: "premium" };
 const admin: Viewer = { ...free, role: "admin" };
 
+// The archive and today's puzzle are open to everyone, so they are not
+// capabilities. Only real gates are listed here.
 const matrix: Record<Capability, [boolean, boolean, boolean, boolean]> = {
   //                  guest  free   premium admin
-  "puzzle:today": [true, true, true, true],
-  "archive:recent": [true, true, true, true],
-  "archive:full": [false, false, true, true],
-  "stats:cloud": [false, true, true, true],
-  "stats:deep": [false, false, true, true],
+  "stats:deep": [false, true, true, true],
   "badge:premium": [false, false, true, false],
   "ads:none": [false, false, true, true],
   "admin:access": [false, false, false, true],
@@ -33,21 +31,20 @@ describe("capability matrix", () => {
   it("never lets a signed-out viewer claim a role or plan", () => {
     const forged: Viewer = { ...guest, role: "admin", plan: "premium" };
     expect(can(forged, "admin:access")).toBe(false);
-    expect(can(forged, "archive:full")).toBe(false);
+    expect(can(forged, "ads:none")).toBe(false);
+    expect(can(forged, "stats:deep")).toBe(false);
   });
 });
 
 describe("puzzleAccess", () => {
   const today = "2026-09-28";
-  it("allows today and the last 7 days to everyone", () => {
-    expect(puzzleAccess(guest, today, today)).toBe("ok");
-    expect(puzzleAccess(guest, "2026-09-21", today)).toBe("ok");
+  it("opens today and every past puzzle to everyone", () => {
+    expect(puzzleAccess(today, today)).toBe("ok");
+    expect(puzzleAccess("2026-09-21", today)).toBe("ok");
+    expect(puzzleAccess("2026-01-01", today)).toBe("ok");
   });
-  it("gates older puzzles behind Premium", () => {
-    expect(puzzleAccess(free, "2026-09-20", today)).toBe("premium_required");
-    expect(puzzleAccess(premium, "2026-01-01", today)).toBe("ok");
-  });
-  it("never serves future puzzles, even to admins", () => {
-    expect(puzzleAccess(admin, "2026-09-29", today)).toBe("future");
+  it("never serves future puzzles", () => {
+    expect(puzzleAccess("2026-09-29", today)).toBe("future");
+    expect(puzzleAccess("2027-01-01", today)).toBe("future");
   });
 });
