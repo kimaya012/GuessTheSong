@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { Crown } from "lucide-react";
 import { AudioPlayer } from "./AudioPlayer";
 import { GuessInput } from "./GuessInput";
 import { GuessList } from "./GuessList";
@@ -18,18 +16,18 @@ interface GameBoardProps {
   timezone: string;
   shareUrl: string;
   premium: boolean;
+  signedIn: boolean;
 }
 
 const ERROR_COPY: Record<string, string> = {
   NO_PUZZLE: "There's no song scheduled for this day.",
-  PREMIUM_REQUIRED: "This puzzle is in the Premium archive.",
   RATE_LIMITED: "That's a lot of guesses at once. Wait a few seconds and try again.",
   ALREADY_COMPLETED: "You've already finished this puzzle.",
   UNKNOWN_SONG: "Pick a song from the suggestions list.",
   FORBIDDEN_ORIGIN: "That request came from an unexpected page. Refresh and try again.",
 };
 
-export function GameBoard({ date, isToday, timezone, shareUrl, premium }: GameBoardProps) {
+export function GameBoard({ date, isToday, timezone, shareUrl, premium, signedIn }: GameBoardProps) {
   const [shell, setShell] = useState<PuzzleShell | null>(null);
   const [catalog, setCatalog] = useState<CatalogSong[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -84,11 +82,6 @@ export function GameBoard({ date, isToday, timezone, shareUrl, premium }: GameBo
     return (
       <TiltCard className="rounded-3xl p-8 text-center">
         <p className="text-lg">{loadError}</p>
-        {loadError === ERROR_COPY.PREMIUM_REQUIRED && (
-          <Link href="/premium" className="mt-4 inline-flex items-center gap-2 rounded-full bg-marigold px-5 py-2.5 font-bold text-primary-foreground">
-            <Crown className="h-4 w-4" /> See Premium
-          </Link>
-        )}
       </TiltCard>
     );
   }
@@ -139,7 +132,7 @@ export function GameBoard({ date, isToday, timezone, shareUrl, premium }: GameBo
         )}
 
         {completed ? (
-          <ResultShareCard shell={shell} shareUrl={shareUrl} premium={premium} timezone={timezone} isToday={isToday} />
+          <ResultShareCard shell={shell} shareUrl={shareUrl} premium={premium} signedIn={signedIn} timezone={timezone} isToday={isToday} />
         ) : (
           <GuessInput
             catalog={catalog}

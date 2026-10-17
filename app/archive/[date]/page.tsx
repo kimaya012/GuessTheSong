@@ -55,6 +55,7 @@ export default async function ArchivePuzzlePage({ params }: Params) {
             timezone={PUZZLE_TIMEZONE}
             shareUrl={`${BETTER_AUTH_URL}/archive/${date}`}
             premium={can(viewer, "badge:premium")}
+            signedIn={!!viewer.userId}
           />
         )}
       </div>

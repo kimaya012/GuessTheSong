@@ -28,6 +28,7 @@ export default async function Home() {
         timezone={PUZZLE_TIMEZONE}
         shareUrl={BETTER_AUTH_URL}
         premium={can(viewer, "badge:premium")}
+        signedIn={!!viewer.userId}
       />
     </main>
   );
