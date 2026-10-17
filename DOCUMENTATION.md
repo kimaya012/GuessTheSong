@@ -209,3 +209,32 @@ Web Audio analyser, and a vinyl play button. Static fallback for reduced motion 
 ### Verification
 `npm test` (unit tests), `tsc`, ESLint and `next build` all pass. See the end of this log for the
 runtime pass.
+
+---
+
+## Pivot (2026-10-17): ads only, archive open to everyone
+
+Buy Me a Coffee does not work for an India-based creator, and a paid tier is not needed for a first
+launch, so monetization is **Google AdSense only** for now.
+
+- **Removed:** the Buy Me a Coffee webhook, parsing and tests, the test-webhook script, the
+  linked-emails feature (it existed only to match a BMC payer's email to an account) and its table
+  (migration `0001_drop_linked_emails`), and the Premium page and links.
+- **Archive open to everyone.** The 7-day window and the "vault" screen are gone. Every past puzzle is
+  playable by guests; only future dates are refused.
+- **Sign-in is offered, not required.** Guests keep stats on their device. A dismissible prompt on the
+  stats page, and a line on the result card after a finished game, offer a free sign-in for stats that
+  follow the player and the decade and vibe breakdown (`stats:deep` is now a signed-in perk).
+- **Premium is parked, not deleted.** `entitlements`, the `premium` tier and the admin grant/revoke
+  actions remain, but `getPlan` returns "free" unless `PREMIUM_ENABLED=true`. The rule for bringing it
+  back: only additive perks (ad-free, streak freeze, practice filters, cosmetics), nothing free players
+  already have.
+- **Capabilities trimmed** to the ones that actually gate something: `stats:deep`, `badge:premium`,
+  `ads:none`, `admin:access`.
+- **Hosting:** Vercel Hobby forbids commercial use, and names AdSense as an example, so the free plan
+  needs a host that allows ads (Netlify free or Cloudflare Pages look viable; verify their terms).
+- **Contact address:** `NEXT_PUBLIC_CONTACT_EMAIL` drives a footer link and the takedown and deletion
+  lines in the legal pages.
+
+Still to do: the username generator (names are a display label on the device identity, claimed by the
+account on sign-in), then catalog growth, endless mode and a leaderboard.
