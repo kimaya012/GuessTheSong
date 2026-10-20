@@ -6,17 +6,19 @@ import { ExternalLink, Share2 } from "lucide-react";
 import { buildShareText } from "@/lib/game/share";
 import { Countdown } from "./Countdown";
 import { AdSlot } from "@/components/ads/AdSlot";
+import { NamePicker } from "@/components/name/NamePicker";
 import type { PlayerStats, PuzzleShell } from "./types";
 
 interface ResultShareCardProps {
   shell: PuzzleShell;
   shareUrl: string;
   premium: boolean;
+  signedIn: boolean;
   timezone: string;
   isToday: boolean;
 }
 
-export function ResultShareCard({ shell, shareUrl, premium, timezone, isToday }: ResultShareCardProps) {
+export function ResultShareCard({ shell, shareUrl, premium, signedIn, timezone, isToday }: ResultShareCardProps) {
   const won = shell.status === "won";
   const answer = shell.answer!;
   const [stats, setStats] = useState<PlayerStats | null>(null);
@@ -136,6 +138,21 @@ export function ResultShareCard({ shell, shareUrl, premium, timezone, isToday }:
             {stats.rank.next ? `, ${stats.rank.winsToNext} more ${stats.rank.winsToNext === 1 ? "win" : "wins"} to ${stats.rank.next.name}.` : "."}
           </p>
         </div>
+      )}
+
+      <NamePicker variant="card" next={isToday ? "/" : `/archive/${shell.date}`} />
+
+      {!signedIn && (
+        // The moment a player has just finished a game is the right time to ask.
+        <p className="rounded-xl bg-white/5 px-4 py-3 text-center text-sm text-muted-foreground ring-1 ring-white/8">
+          Keep your streak and stats on every device.{" "}
+          <Link
+            href={`/sign-in?next=${encodeURIComponent(isToday ? "/" : `/archive/${shell.date}`)}`}
+            className="font-semibold text-peacock hover:underline"
+          >
+            Sign in free
+          </Link>
+        </p>
       )}
 
       <div className="flex flex-col items-center gap-2">

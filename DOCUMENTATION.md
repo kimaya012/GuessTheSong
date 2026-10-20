@@ -209,3 +209,56 @@ Web Audio analyser, and a vinyl play button. Static fallback for reduced motion 
 ### Verification
 `npm test` (unit tests), `tsc`, ESLint and `next build` all pass. See the end of this log for the
 runtime pass.
+
+---
+
+## Pivot (2026-10-17): ads only, archive open to everyone
+
+Buy Me a Coffee does not work for an India-based creator, and a paid tier is not needed for a first
+launch, so monetization is **Google AdSense only** for now.
+
+- **Removed:** the Buy Me a Coffee webhook, parsing and tests, the test-webhook script, the
+  linked-emails feature (it existed only to match a BMC payer's email to an account) and its table
+  (migration `0001_drop_linked_emails`), and the Premium page and links.
+- **Archive open to everyone.** The 7-day window and the "vault" screen are gone. Every past puzzle is
+  playable by guests; only future dates are refused.
+- **Sign-in is offered, not required.** Guests keep stats on their device. A dismissible prompt on the
+  stats page, and a line on the result card after a finished game, offer a free sign-in for stats that
+  follow the player and the decade and vibe breakdown (`stats:deep` is now a signed-in perk).
+- **Premium is parked, not deleted.** `entitlements`, the `premium` tier and the admin grant/revoke
+  actions remain, but `getPlan` returns "free" unless `PREMIUM_ENABLED=true`. The rule for bringing it
+  back: only additive perks (ad-free, streak freeze, practice filters, cosmetics), nothing free players
+  already have.
+- **Capabilities trimmed** to the ones that actually gate something: `stats:deep`, `badge:premium`,
+  `ads:none`, `admin:access`.
+- **Hosting:** Vercel Hobby forbids commercial use, and names AdSense as an example, so the free plan
+  needs a host that allows ads (Netlify free or Cloudflare Pages look viable; verify their terms).
+- **Contact address:** `NEXT_PUBLIC_CONTACT_EMAIL` drives a footer link and the takedown and deletion
+  lines in the legal pages.
+
+Still to do: the username generator (names are a display label on the device identity, claimed by the
+account on sign-in), then catalog growth, endless mode and a leaderboard.
+
+---
+
+## Player names (2026-10-17)
+
+A public display name per player, so stats and a future leaderboard have an identity that is not an email.
+
+- **Model:** `player_names` (migration `0002_player_names`). One row per owner: a guest device, or an
+  account once they sign in. A unique index on the lowercased name settles races between two people
+  picking the same name, so the database, not application code, guarantees uniqueness.
+- **Rules** are pure modules with tests: `rules.ts` (format, safe to run in the browser), `blocklist.ts`
+  (server only), `policy.ts` (who may change a name, and the sign-in merge plan) and `generator.ts`.
+- **API:** `GET/POST /api/name` and `GET /api/name/suggest`, both same-origin checked and rate-limited per
+  device and per network address.
+- **UI:** one `NamePicker` component, offered on the result card after a finished game (only while the
+  player has no name, snoozed for a week if they say "Maybe later"), and permanently on the stats and
+  account pages. The header avatar uses the name.
+- **Sign-in:** `/auth/complete` moves a guest name onto the account. Found while testing: the 7-day
+  cooldown must not start at sign-in, because the screen told the guest to sign in *to change* the name,
+  so the merge backdates the last change and the first change after signing in is free.
+- **Admin:** the players table shows each name with a "Clear" button (audit-logged) as the moderation lever.
+- **Tests:** unit tests for every rule, plus end-to-end runs against a real database covering claim,
+  duplicate (any casing), guest-change refusal, cross-site refusal, rate limit, sign-in transfer, cooldown,
+  release-on-merge, and the admin clear.

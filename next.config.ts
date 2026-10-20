@@ -14,6 +14,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   poweredByHeader: false,
   serverExternalPackages: ["ffmpeg-static"],
   async headers() {

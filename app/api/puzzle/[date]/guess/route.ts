@@ -19,7 +19,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ date: s
   const limit = await rateLimit(`guess:${viewer.userId ?? viewer.deviceId}`, 30, 60);
   if (!limit.ok) return jsonError("RATE_LIMITED", 429, { retryAfterSec: limit.retryAfterSec });
 
-  const gate = resolvePuzzleDate(viewer, (await params).date);
+  const gate = resolvePuzzleDate((await params).date);
   if (!gate.ok) return gate.response;
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));

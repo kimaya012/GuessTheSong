@@ -5,7 +5,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ date: string }> }) {
   const viewer = await getViewer();
-  const gate = resolvePuzzleDate(viewer, (await params).date);
+  const gate = resolvePuzzleDate((await params).date);
   if (!gate.ok) return gate.response;
 
   const shell = await getPuzzleShell(viewer, gate.date);

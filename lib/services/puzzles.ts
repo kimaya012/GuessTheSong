@@ -13,6 +13,7 @@ import {
   type HintKey,
 } from "@/lib/game/rules";
 import { sliceMp3ToSeconds } from "@/lib/audio/mp3";
+import { albumHint } from "@/lib/game/hints";
 
 export class GameError extends Error {
   constructor(public readonly code: "NO_PUZZLE" | "ALREADY_COMPLETED" | "UNKNOWN_SONG") {
@@ -70,7 +71,7 @@ function buildShell(puzzle: PuzzleRow, song: SongRow, attempt: AttemptRow | null
     length: formatDuration(song.durationSec),
     releaseYear: song.year,
     genre: song.genre,
-    album: song.album,
+    album: albumHint(song.title, song.album),
     artist: song.artist,
   };
   const hints: PuzzleShell["hints"] = {};

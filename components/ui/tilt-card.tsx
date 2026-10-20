@@ -31,7 +31,7 @@ export function TiltCard({ className, children }: { className?: string; children
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
       className={cn(
-        "panel relative transition-transform duration-300 ease-out will-change-transform",
+        "panel relative z-10 transition-transform duration-300 ease-out will-change-transform",
         "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-[radial-gradient(600px_circle_at_var(--glow-x,50%)_var(--glow-y,0%),rgb(255_176_32/0.09),transparent_40%)]",
         className,
       )}

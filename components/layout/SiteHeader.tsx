@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Crown } from "lucide-react";
 import { getViewer } from "@/lib/viewer";
 import { can } from "@/lib/authz/policy";
+import { getPlayerName } from "@/lib/services/names";
 import { SideMenu } from "./SideMenu";
 import { ReelMark } from "./ReelMark";
 import { NAV_LINKS } from "./nav-links";
@@ -12,6 +13,7 @@ export async function SiteHeader() {
   const signedIn = !!viewer.userId;
   const isAdmin = can(viewer, "admin:access");
   const premium = can(viewer, "badge:premium");
+  const playerName = signedIn ? (await getPlayerName(viewer))?.name : null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-night/60 backdrop-blur-xl">
@@ -48,7 +50,7 @@ export async function SiteHeader() {
             </span>
           )}
           {signedIn ? (
-            <UserMenu name={viewer.name || viewer.email || "Listener"} />
+            <UserMenu name={playerName ?? (viewer.name || viewer.email || "Listener")} />
           ) : (
             <Link
               href="/sign-in"

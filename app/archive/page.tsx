@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Fragment } from "react";
-import { Crown } from "lucide-react";
 import { getViewer } from "@/lib/viewer";
-import { ARCHIVE_FREE_DAYS, can } from "@/lib/authz/policy";
 import { todayInTz } from "@/lib/date";
-import { countArchive, listArchive, type ArchiveEntry } from "@/lib/services/archive";
+import { listArchive, type ArchiveEntry } from "@/lib/services/archive";
 import { AdSlot } from "@/components/ads/AdSlot";
 
 export const metadata: Metadata = { title: "Archive" };
@@ -13,13 +11,6 @@ export const metadata: Metadata = { title: "Archive" };
 const SQUARE = { correct: "bg-mint", wrong: "bg-rani", skip: "bg-white/25", giveup: "bg-white/25" } as const;
 
 function Result({ entry }: { entry: ArchiveEntry }) {
-  if (entry.locked) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-marigold">
-        <Crown className="h-4 w-4" /> Premium
-      </span>
-    );
-  }
   if (!entry.status) return <span className="text-sm font-semibold text-peacock">Play</span>;
   return (
     <span className="flex items-center gap-3">
@@ -39,27 +30,14 @@ function Result({ entry }: { entry: ArchiveEntry }) {
 export default async function ArchivePage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const viewer = await getViewer();
   const page = Math.max(1, Number.parseInt((await searchParams).page ?? "1", 10) || 1);
-  const today = todayInTz();
-  const [{ entries, hasMore }, total] = await Promise.all([listArchive(viewer, today, page), countArchive(today)]);
-  const fullAccess = can(viewer, "archive:full");
+  const { entries, hasMore } = await listArchive(viewer, todayInTz(), page);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <h1 className="font-display text-5xl">The archive</h1>
       <p className="mt-3 max-w-xl text-muted-foreground">
-        Every song we&apos;ve played, newest first. Missed a day? Your streak only counts games you play.
+        Every song we&apos;ve played, newest first. Missed a day? Play it now. Your streak only counts games you play.
       </p>
-
-      {!fullAccess && (
-        <div className="panel mt-6 flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            Free listeners can replay the last {ARCHIVE_FREE_DAYS} days. Premium opens all {total} past songs.
-          </p>
-          <Link href="/premium" className="shrink-0 rounded-full bg-marigold px-5 py-2.5 text-center font-bold text-primary-foreground">
-            Unlock the archive
-          </Link>
-        </div>
-      )}
 
       {entries.length === 0 ? (
         <p className="panel mt-8 rounded-2xl p-6 text-muted-foreground">
@@ -71,7 +49,7 @@ export default async function ArchivePage({ searchParams }: { searchParams: Prom
             <Fragment key={entry.puzzleNumber}>
               <li>
                 <Link
-                  href={entry.locked ? "/premium" : `/archive/${entry.date}`}
+                  href={`/archive/${entry.date}`}
                   className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-white/4"
                 >
                   <span>

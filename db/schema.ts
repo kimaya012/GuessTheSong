@@ -127,7 +127,7 @@ export const entitlements = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     email: text("email").notNull(),
-    source: text("source", { enum: ["bmc", "admin"] }).notNull(),
+    source: text("source", { enum: ["admin"] }).notNull(),
     externalRef: text("external_ref").notNull(),
     status: text("status", { enum: ["active", "cancelled", "expired"] }).notNull(),
     currentPeriodEnd: timestamptzCol("current_period_end").notNull(),
@@ -141,25 +141,25 @@ export const entitlements = pgTable(
   ],
 );
 
-// Extra emails a user has proven they own (e.g. the one they paid with on
-// Buy Me a Coffee). Only a hash of the verification token is stored.
-export const linkedEmails = pgTable(
-  "linked_emails",
+// A player's public name. Owned by a device while they are a guest and by
+// their account once they sign in; at most one name per owner. name_key is the
+// lowercased name, so uniqueness ignores case and the database settles races.
+export const playerNames = pgTable(
+  "player_names",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    email: text("email").notNull(),
-    tokenHash: text("token_hash"),
-    tokenExpiresAt: timestamptzCol("token_expires_at"),
-    verifiedAt: timestamptzCol("verified_at"),
+    name: text("name").notNull(),
+    nameKey: text("name_key").notNull(),
+    deviceId: uuid("device_id").references(() => userDevices.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     createdAt: timestamptzCol("created_at").notNull().defaultNow(),
+    changedAt: timestamptzCol("changed_at").notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("linked_emails_user_email_idx").on(table.userId, table.email),
-    index("linked_emails_email_idx").on(table.email),
-    uniqueIndex("linked_emails_token_idx").on(table.tokenHash),
+    uniqueIndex("player_names_name_key_idx").on(table.nameKey),
+    uniqueIndex("player_names_device_idx").on(table.deviceId),
+    uniqueIndex("player_names_user_idx").on(table.userId),
+    check("player_names_owner_check", sql`${table.deviceId} IS NOT NULL OR ${table.userId} IS NOT NULL`),
   ],
 );
 

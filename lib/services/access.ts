@@ -1,17 +1,14 @@
 import { isValidDateString, resolveDateParam, todayInTz } from "@/lib/date";
-import { puzzleAccess, type Viewer } from "@/lib/authz/policy";
+import { puzzleAccess } from "@/lib/authz/policy";
 import { jsonError } from "@/lib/http";
 
-// Shared date gate for puzzle routes: validates the param, resolves "today"
-// in the puzzle timezone, and applies the tier's archive window.
-export function resolvePuzzleDate(
-  viewer: Viewer,
-  rawDate: string,
-): { ok: true; date: string } | { ok: false; response: Response } {
-  const date = resolveDateParam(rawDate, todayInTz());
+// Shared date gate for puzzle routes: validates the param and resolves
+// "today" in the puzzle timezone. Every past puzzle is open to everyone;
+// only future dates are refused, so tomorrow's answer can't be probed.
+export function resolvePuzzleDate(rawDate: string): { ok: true; date: string } | { ok: false; response: Response } {
+  const today = todayInTz();
+  const date = resolveDateParam(rawDate, today);
   if (!isValidDateString(date)) return { ok: false, response: jsonError("INVALID_DATE", 400) };
-  const access = puzzleAccess(viewer, date, todayInTz());
-  if (access === "future") return { ok: false, response: jsonError("NOT_FOUND", 404) };
-  if (access === "premium_required") return { ok: false, response: jsonError("PREMIUM_REQUIRED", 403) };
+  if (puzzleAccess(date, today) === "future") return { ok: false, response: jsonError("NOT_FOUND", 404) };
   return { ok: true, date };
 }

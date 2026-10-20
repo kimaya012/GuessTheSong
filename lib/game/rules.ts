@@ -33,6 +33,14 @@ export function hintsUnlocked(guessCount: number, completed: boolean): HintKey[]
   return HINT_SCHEDULE.slice(0, Math.max(0, Math.min(guessCount, HINT_SCHEDULE.length)));
 }
 
+// Rows to show in the guess list: while playing, the guesses made plus the
+// one being entered (so it starts at one row and grows by one per guess);
+// once the game is over, only the guesses actually used.
+export function visibleGuessRows(guessCount: number, status: AttemptStatus): number {
+  if (status !== "playing") return Math.min(guessCount, MAX_GUESSES);
+  return Math.min(guessCount + 1, MAX_GUESSES);
+}
+
 export function pointsFor(status: AttemptStatus, guessCount: number): number {
   if (status !== "won") return 0;
   return Math.max(0, MAX_GUESSES - guessCount + 1);

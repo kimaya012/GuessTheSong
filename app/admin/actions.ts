@@ -8,6 +8,7 @@ import { songs, user } from "@/db/schema";
 import { requireCapability } from "@/lib/viewer";
 import { grantPremium, revokePremium } from "@/lib/services/entitlements";
 import { writeAudit } from "@/lib/services/audit";
+import { clearPlayerName } from "@/lib/services/names";
 
 // Every action re-checks admin:access itself: server actions are public
 // POST endpoints, so the page having checked is not enough.
@@ -38,6 +39,12 @@ export async function setRoleAction(formData: FormData): Promise<void> {
   }
   await db.update(user).set({ role: input.role }).where(eq(user.id, input.userId));
   await writeAudit(admin.userId, "role.set", input.userId, { role: input.role });
+  revalidatePath("/admin");
+}
+
+export async function clearNameAction(formData: FormData): Promise<void> {
+  const admin = await requireCapability("admin:access");
+  await clearPlayerName(admin.userId!, userId.parse(formData.get("userId")));
   revalidatePath("/admin");
 }
 

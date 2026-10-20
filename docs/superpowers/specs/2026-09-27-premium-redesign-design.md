@@ -1,5 +1,7 @@
 # GuessTheBollySong v2 — Reference-parity scoring, accounts & tiers, redesign, monetization
 
+> **Superseded in part (2026-10-17):** Buy Me a Coffee, the Premium tier, linked emails and the 7-day archive window were removed in favour of an ads-only launch with an open archive. See the Pivot section of DOCUMENTATION.md. Sections 2 and 5 below describe the original design.
+
 Date: 2026-09-27 · Status: approved in chat (parts 1–4), pending written-spec review
 
 ## 0. Goals and non-goals

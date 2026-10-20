@@ -3,15 +3,24 @@ import fs from "node:fs";
 import path from "node:path";
 import { db } from "../lib/db";
 import { songs } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { parseCsvObjects, toCsvLine } from "../lib/catalog/csv";
+import { cleanAlbum, cleanTitle, exportifyToSeed, type SeedRow } from "../lib/catalog/seed";
+import { normalizeText } from "../lib/text";
+import { MATCH_THRESHOLD, matchScore } from "../lib/catalog/match";
 
-interface SeedRow {
-  title: string;
-  artist: string;
-  hint_album?: string;
-  hint_year?: string;
-  hint_genre?: string;
-}
+// Builds the song catalog from:
+//   scripts/data/seed-song-list.csv   hand-curated rows (title,artist,hint_*)
+//   scripts/data/exportify/*.csv      Spotify playlist exports from exportify.net
+//                                     (a file name containing "hip hop"/"rap"
+//                                     marks the whole playlist as Hip-Hop)
+// Each song is resolved to a playable preview on iTunes (Deezer as fallback;
+// it's geo-blocked from India and its preview links expire). Curated hints
+// win over API metadata. Songs already in the catalog are skipped, so it is
+// safe to re-run after adding rows. Failures go to unresolved-songs.csv.
+
+const DATA_DIR = path.join(__dirname, "data");
+const EXPORTIFY_DIR = path.join(DATA_DIR, "exportify");
+const DELAY_MS = Number(process.env.INGEST_DELAY_MS ?? 3000); // iTunes allows ~20 searches/min
 
 interface ResolvedSong {
   title: string;
@@ -28,55 +37,8 @@ interface ResolvedSong {
   externalUrl: string | null;
 }
 
-function normalize(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9\s]/g, "")
-    .trim();
-}
-
-function similarity(a: string, b: string): number {
-  const na = normalize(a);
-  const nb = normalize(b);
-  if (na === nb) return 1;
-  const setA = new Set(na.split(/\s+/));
-  const setB = new Set(nb.split(/\s+/));
-  const intersection = [...setA].filter((w) => setB.has(w)).length;
-  const union = new Set([...setA, ...setB]).size;
-  return union === 0 ? 0 : intersection / union;
-}
-
-function parseCsv(content: string): SeedRow[] {
-  const lines = content.trim().split("\n");
-  const headers = lines[0].split(",").map((h) => h.trim());
-  return lines.slice(1).map((line) => {
-    // Simple CSV split; seed data has no embedded commas in quotes.
-    const values = line.split(",").map((v) => v.trim());
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      row[h] = values[i] ?? "";
-    });
-    return row as unknown as SeedRow;
-  });
-}
-
-async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-interface DeezerTrack {
-  id: number;
-  title: string;
-  preview: string;
-  link?: string;
-  duration?: number;
-  artist?: { name?: string };
-  album?: { title?: string; cover_medium?: string };
-}
-
 interface ItunesTrack {
+  kind?: string;
   trackId: number;
   trackName: string;
   artistName?: string;
@@ -89,31 +51,98 @@ interface ItunesTrack {
   trackViewUrl?: string;
 }
 
-async function searchDeezer(title: string, artist: string): Promise<ResolvedSong | null> {
-  const query = `track:"${title}" artist:"${artist}"`;
-  const url = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const data = (await res.json()) as { data?: DeezerTrack[] };
-  const candidates = data.data ?? [];
-  if (candidates.length === 0) return null;
+interface DeezerTrack {
+  id: number;
+  title: string;
+  preview: string;
+  link?: string;
+  duration?: number;
+  artist?: { name?: string };
+  album?: { title?: string; cover_medium?: string };
+}
 
-  let best = candidates[0];
-  let bestScore = -1;
-  for (const c of candidates) {
-    const score =
-      similarity(c.title, title) * 0.6 + similarity(c.artist?.name ?? "", artist) * 0.4;
-    if (score > bestScore) {
-      bestScore = score;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const creditsOf = (row: SeedRow) => (row.credits?.length ? row.credits : [row.artist]);
+
+// Transient failures (throttling, 5xx, network) are retried with backoff so
+// they aren't mistaken for "song not found".
+async function fetchJson<T>(url: string): Promise<T | null> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return (await res.json()) as T;
+      if (res.status !== 403 && res.status !== 429 && res.status < 500) return null;
+    } catch {
+      // network error: retry
+    }
+    await sleep(2000 * 2 ** attempt);
+  }
+  return null;
+}
+
+// Tries progressively broader searches: title + lead artist, then the title
+// alone (the lead credit is often the composer), then the US store (newer
+// independent releases are frequently missing from the Indian store).
+async function searchItunes(row: SeedRow): Promise<ResolvedSong | null> {
+  const queries: [string, string][] = [
+    [`${row.title} ${row.artist}`, "IN"],
+    [row.title, "IN"],
+    [`${row.title} ${row.artist}`, "US"],
+  ];
+  for (const [i, [term, country]] of queries.entries()) {
+    if (i > 0) await sleep(DELAY_MS / 2);
+    // entity=song excludes music videos, whose previews are video files.
+    const data = await fetchJson<{ results?: ItunesTrack[] }>(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&country=${country}&limit=25`,
+    );
+    let best: ItunesTrack | null = null;
+    let bestScore = MATCH_THRESHOLD;
+    for (const c of data?.results ?? []) {
+      if (c.kind !== "song" || !c.previewUrl) continue;
+      const s = matchScore(c.trackName ?? "", c.artistName ?? "", row.title, creditsOf(row));
+      if (s > bestScore) {
+        bestScore = s;
+        best = c;
+      }
+    }
+    if (best?.previewUrl) {
+      return {
+        title: cleanTitle(best.trackName),
+        artist: best.artistName ?? row.artist,
+        album: best.collectionName ? cleanAlbum(best.collectionName) : null,
+        year: best.releaseDate ? new Date(best.releaseDate).getFullYear() : null,
+        genre: null, // iTunes labels nearly everything "Bollywood"
+        durationSec: best.trackTimeMillis ? Math.round(best.trackTimeMillis / 1000) : null,
+        deezerTrackId: null,
+        itunesTrackId: String(best.trackId),
+        previewUrl: best.previewUrl,
+        previewSource: "itunes",
+        coverImageUrl: best.artworkUrl100 ?? null,
+        externalUrl: best.trackViewUrl ?? null,
+      };
+    }
+  }
+  return null;
+}
+
+async function searchDeezer(row: SeedRow): Promise<ResolvedSong | null> {
+  const query = encodeURIComponent(`track:"${row.title}" artist:"${row.artist}"`);
+  const data = await fetchJson<{ data?: DeezerTrack[] }>(`https://api.deezer.com/search?q=${query}`);
+  let best: DeezerTrack | null = null;
+  let bestScore = MATCH_THRESHOLD;
+  for (const c of data?.data ?? []) {
+    const s = matchScore(c.title, c.artist?.name ?? "", row.title, creditsOf(row));
+    if (c.preview && s > bestScore) {
+      bestScore = s;
       best = c;
     }
   }
-  if (bestScore < 0.3 || !best.preview) return null;
-
+  if (!best) return null;
   return {
-    title: best.title,
-    artist: best.artist?.name ?? artist,
-    album: best.album?.title ?? null,
+    title: cleanTitle(best.title),
+    artist: best.artist?.name ?? row.artist,
+    album: best.album?.title ? cleanAlbum(best.album.title) : null,
     year: null,
     genre: null,
     durationSec: best.duration ?? null,
@@ -126,151 +155,104 @@ async function searchDeezer(title: string, artist: string): Promise<ResolvedSong
   };
 }
 
-async function searchItunes(title: string, artist: string): Promise<ResolvedSong | null> {
-  const term = `${title} ${artist}`;
-  const url = `https://itunes.apple.com/search?term=${encodeURIComponent(
-    term,
-  )}&media=music&country=IN&limit=10`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const data = (await res.json()) as { results?: ItunesTrack[] };
-  const candidates = data.results ?? [];
-  if (candidates.length === 0) return null;
-
-  let best = candidates[0];
-  let bestScore = -1;
-  for (const c of candidates) {
-    const score =
-      similarity(c.trackName ?? "", title) * 0.6 +
-      similarity(c.artistName ?? "", artist) * 0.4;
-    if (score > bestScore) {
-      bestScore = score;
-      best = c;
-    }
-  }
-  if (bestScore < 0.3 || !best.previewUrl) return null;
-
-  const year = best.releaseDate ? new Date(best.releaseDate).getFullYear() : null;
-
-  return {
-    title: best.trackName,
-    artist: best.artistName ?? artist,
-    album: best.collectionName ?? null,
-    year,
-    genre: best.primaryGenreName ?? null,
-    durationSec: best.trackTimeMillis ? Math.round(best.trackTimeMillis / 1000) : null,
-    deezerTrackId: null,
-    itunesTrackId: String(best.trackId),
-    previewUrl: best.previewUrl,
-    previewSource: "itunes",
-    coverImageUrl: best.artworkUrl100 ?? null,
-    externalUrl: best.trackViewUrl ?? null,
-  };
-}
-
-async function verifyPreviewReachable(url: string): Promise<boolean> {
+async function previewPlayable(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, { method: "HEAD" });
-    if (!res.ok) return false;
-    const contentType = res.headers.get("content-type") ?? "";
-    return contentType.startsWith("audio") || contentType === "application/octet-stream";
+    const type = res.headers.get("content-type") ?? "";
+    return res.ok && (type.startsWith("audio/") || type === "application/octet-stream");
   } catch {
     return false;
   }
 }
 
-async function main() {
-  const csvPath = path.join(__dirname, "data", "seed-song-list.csv");
-  const content = fs.readFileSync(csvPath, "utf-8");
-  const rows = parseCsv(content);
-
-  const unresolved: SeedRow[] = [];
-  let inserted = 0;
-  let skipped = 0;
-
-  for (const row of rows) {
-    const title = row.title?.trim();
-    const artist = row.artist?.trim();
-    if (!title || !artist) continue;
-
-    process.stdout.write(`Resolving "${title}" by ${artist}... `);
-
-    let resolved = await searchDeezer(title, artist);
-    if (!resolved) {
-      resolved = await searchItunes(title, artist);
+function loadSeedRows(): SeedRow[] {
+  const rows: SeedRow[] = [];
+  const curated = path.join(DATA_DIR, "seed-song-list.csv");
+  if (fs.existsSync(curated)) {
+    for (const r of parseCsvObjects(fs.readFileSync(curated, "utf8"))) {
+      rows.push({ title: r.title, artist: r.artist, hint_album: r.hint_album, hint_year: r.hint_year, hint_genre: r.hint_genre });
     }
+    console.log(`Curated seed list: ${rows.length} songs`);
+  }
+  if (fs.existsSync(EXPORTIFY_DIR)) {
+    for (const file of fs.readdirSync(EXPORTIFY_DIR).filter((f) => f.toLowerCase().endsWith(".csv"))) {
+      const hipHop = /hip.?hop|\brap\b/i.test(file);
+      const converted = exportifyToSeed(parseCsvObjects(fs.readFileSync(path.join(EXPORTIFY_DIR, file), "utf8")), { hipHop });
+      console.log(`Exportify ${file}: ${converted.length} songs${hipHop ? " (Hip-Hop)" : ""}`);
+      rows.push(...converted);
+    }
+  }
+  // Same song in several sources: keep the first (curated rows come first).
+  const seen = new Set<string>();
+  return rows.filter((r) => {
+    const key = `${normalizeText(r.title ?? "")}|${normalizeText(r.artist ?? "")}`;
+    if (!r.title || !r.artist || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function main() {
+  const seeds = loadSeedRows();
+  const existing = await db
+    .select({ title: songs.title, artist: songs.artist, itunesTrackId: songs.itunesTrackId, deezerTrackId: songs.deezerTrackId })
+    .from(songs);
+  const knownIds = new Set(existing.flatMap((s) => [s.itunesTrackId, s.deezerTrackId]).filter(Boolean));
+  const knownSongs = existing.map((s) => ({ title: normalizeText(s.title), artist: normalizeText(s.artist) }));
+  const alreadyHave = (r: SeedRow) =>
+    knownSongs.some((k) => k.title === normalizeText(r.title) && k.artist.includes(normalizeText(r.artist)));
+
+  const todo = seeds.filter((r) => !alreadyHave(r));
+  console.log(`${seeds.length} unique songs across sources; ${seeds.length - todo.length} already in the catalog; resolving ${todo.length}.\n`);
+
+  const unresolved: (SeedRow & { reason: string })[] = [];
+  let inserted = 0;
+
+  for (const [i, row] of todo.entries()) {
+    process.stdout.write(`[${i + 1}/${todo.length}] "${row.title}" by ${row.artist}... `);
+    const resolved = (await searchItunes(row)) ?? (await searchDeezer(row));
 
     if (!resolved) {
       console.log("NOT FOUND");
-      unresolved.push(row);
-      skipped++;
-      await sleep(250);
-      continue;
-    }
-
-    const reachable = await verifyPreviewReachable(resolved.previewUrl);
-    if (!reachable) {
-      console.log("PREVIEW UNREACHABLE");
-      unresolved.push(row);
-      skipped++;
-      await sleep(250);
-      continue;
-    }
-
-    const finalRow = {
-      title: resolved.title,
-      titleNormalized: normalize(resolved.title),
-      artist: resolved.artist,
-      // Curated seed hints win over API metadata: iTunes labels every track
-      // "Bollywood" (useless as a hint), uses reissue dates, and appends
-      // "(Original Motion Picture Soundtrack)" to album names.
-      album: row.hint_album || resolved.album || null,
-      year: row.hint_year ? Number(row.hint_year) : resolved.year,
-      genre: row.hint_genre || resolved.genre || null,
-      durationSec: resolved.durationSec,
-      deezerTrackId: resolved.deezerTrackId,
-      spotifyTrackId: null,
-      itunesTrackId: resolved.itunesTrackId,
-      previewUrl: resolved.previewUrl,
-      previewSource: resolved.previewSource,
-      externalUrl: resolved.externalUrl,
-      coverImageUrl: resolved.coverImageUrl,
-      active: true,
-    };
-
-    const dedupeCondition = resolved.deezerTrackId
-      ? eq(songs.deezerTrackId, resolved.deezerTrackId)
-      : resolved.itunesTrackId
-        ? eq(songs.itunesTrackId, resolved.itunesTrackId)
-        : eq(songs.titleNormalized, finalRow.titleNormalized);
-
-    const existing = await db.select({ id: songs.id }).from(songs).where(dedupeCondition).limit(1);
-    if (existing.length > 0) {
+      unresolved.push({ ...row, reason: "no matching track with a preview" });
+    } else if (knownIds.has(resolved.itunesTrackId ?? resolved.deezerTrackId)) {
       console.log("ALREADY EXISTS");
-      await sleep(250);
-      continue;
+    } else if (!(await previewPlayable(resolved.previewUrl))) {
+      console.log("PREVIEW UNPLAYABLE");
+      unresolved.push({ ...row, reason: "preview not playable audio" });
+    } else {
+      const year = row.hint_year ? Number(row.hint_year) : resolved.year;
+      await db.insert(songs).values({
+        title: resolved.title,
+        titleNormalized: normalizeText(resolved.title),
+        artist: resolved.artist,
+        album: row.hint_album || resolved.album,
+        year: Number.isFinite(year) ? year : null,
+        genre: row.hint_genre || resolved.genre,
+        durationSec: resolved.durationSec,
+        deezerTrackId: resolved.deezerTrackId,
+        spotifyTrackId: null,
+        itunesTrackId: resolved.itunesTrackId,
+        previewUrl: resolved.previewUrl,
+        previewSource: resolved.previewSource,
+        externalUrl: resolved.externalUrl,
+        coverImageUrl: resolved.coverImageUrl,
+        active: true,
+      });
+      knownIds.add(resolved.itunesTrackId ?? resolved.deezerTrackId);
+      inserted++;
+      console.log(`OK → ${resolved.title} (${resolved.previewSource})`);
     }
-
-    await db.insert(songs).values(finalRow);
-    console.log(`OK (${resolved.previewSource})`);
-    inserted++;
-    await sleep(250);
+    await sleep(DELAY_MS);
   }
 
-  console.log(`\nDone. Inserted ${inserted}, skipped ${skipped}.`);
-
-  if (unresolved.length > 0) {
-    const unresolvedPath = path.join(__dirname, "data", "unresolved-songs.csv");
-    const header = "title,artist,hint_album,hint_year,hint_genre\n";
-    const body = unresolved
-      .map(
-        (r) =>
-          `${r.title},${r.artist},${r.hint_album ?? ""},${r.hint_year ?? ""},${r.hint_genre ?? ""}`,
-      )
-      .join("\n");
-    fs.writeFileSync(unresolvedPath, header + body);
-    console.log(`Wrote ${unresolved.length} unresolved rows to ${unresolvedPath}`);
-  }
+  console.log(`\nDone. Inserted ${inserted}, unresolved ${unresolved.length}.`);
+  const header = toCsvLine(["title", "artist", "hint_album", "hint_year", "hint_genre", "reason"]);
+  const body = unresolved.map((r) =>
+    toCsvLine([r.title, r.artist, r.hint_album ?? "", r.hint_year ?? "", r.hint_genre ?? "", r.reason]),
+  );
+  fs.writeFileSync(path.join(DATA_DIR, "unresolved-songs.csv"), [header, ...body].join("\n") + "\n");
+  if (unresolved.length) console.log(`Unresolved rows written to scripts/data/unresolved-songs.csv`);
 }
 
 main()

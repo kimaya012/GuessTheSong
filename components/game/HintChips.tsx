@@ -4,9 +4,9 @@ import type { HintKey, PuzzleShell } from "./types";
 const HINTS: { key: HintKey; label: string }[] = [
   { key: "length", label: "Length" },
   { key: "releaseYear", label: "Released" },
-  { key: "genre", label: "Mood" },
-  { key: "album", label: "Film" },
-  { key: "artist", label: "Singer" },
+  { key: "genre", label: "Vibe" },
+  { key: "album", label: "From" },
+  { key: "artist", label: "Artist" },
 ];
 
 export function HintChips({ hints }: { hints: PuzzleShell["hints"] }) {
@@ -18,6 +18,7 @@ export function HintChips({ hints }: { hints: PuzzleShell["hints"] }) {
         return (
           <li
             key={key}
+            title={unlocked ? undefined : `Unlocks after guess ${i + 1}`}
             className={
               unlocked
                 ? "rounded-full bg-peacock/12 px-3 py-1.5 text-sm text-foreground ring-1 ring-peacock/35"
@@ -31,7 +32,8 @@ export function HintChips({ hints }: { hints: PuzzleShell["hints"] }) {
             ) : (
               <>
                 <Lock className="h-3 w-3" aria-hidden="true" />
-                {label} after guess {i + 1}
+                {label}
+                <span className="sr-only"> unlocks after guess {i + 1}</span>
               </>
             )}
           </li>

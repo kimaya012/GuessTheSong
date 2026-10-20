@@ -44,7 +44,7 @@ export async function proxy(request: NextRequest) {
   const isDev = process.env.NODE_ENV !== "production";
   const secret = process.env.DEVICE_COOKIE_SECRET || (isDev ? "dev-only-device_cookie_secret-not-for-production" : "");
 
-  if (PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) && pathname !== "/account/verify-email") {
+  if (PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     if (!getSessionCookie(request)) {
       const url = new URL("/sign-in", request.url);
       url.searchParams.set("next", `${pathname}${search}`);

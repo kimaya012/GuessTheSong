@@ -1,9 +1,10 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Fuse from "fuse.js";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { chooseListPlacement, type Placement } from "@/lib/ui/placement";
 import type { CatalogSong } from "./types";
 
 interface GuessInputProps {
@@ -15,18 +16,52 @@ interface GuessInputProps {
   onGiveUp: () => void;
 }
 
+const ROW_HEIGHT = 64; // two-line option incl. padding
+const MAX_RESULTS = 6;
+const LIST_HEIGHT = ROW_HEIGHT * MAX_RESULTS + 12;
+const HEADER_INSET = 72; // sticky header is 64px tall
+
 // ARIA combobox: type to search, arrow keys to move, Enter to guess.
 export function GuessInput({ catalog, disabled, nextSnippetGain, onGuess, onSkip, onGiveUp }: GuessInputProps) {
   const listId = useId();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [layout, setLayout] = useState<Placement>({ placement: "down", maxHeight: LIST_HEIGHT });
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Opens on whichever side has room, and never under the footer.
+  const updateLayout = useCallback(() => {
+    const rect = inputRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const next = chooseListPlacement({
+      inputTop: rect.top,
+      inputBottom: rect.bottom,
+      viewportHeight: window.innerHeight,
+      footerTop: document.querySelector("footer")?.getBoundingClientRect().top ?? null,
+      listHeight: LIST_HEIGHT,
+      gap: 8,
+      topInset: HEADER_INSET,
+    });
+    setLayout((prev) => (prev.placement === next.placement && prev.maxHeight === next.maxHeight ? prev : next));
+  }, []);
+
+  // Keep the placement right while the list is open and the page moves.
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener("scroll", updateLayout, { passive: true });
+    window.addEventListener("resize", updateLayout);
+    return () => {
+      window.removeEventListener("scroll", updateLayout);
+      window.removeEventListener("resize", updateLayout);
+    };
+  }, [open, updateLayout]);
 
   const fuse = useMemo(
     () => new Fuse(catalog, { keys: [{ name: "title", weight: 0.7 }, { name: "artist", weight: 0.3 }], threshold: 0.38, ignoreLocation: true }),
     [catalog],
   );
-  const results = query.trim() ? fuse.search(query.trim(), { limit: 6 }).map((r) => r.item) : [];
+  const results = query.trim() ? fuse.search(query.trim(), { limit: MAX_RESULTS }).map((r) => r.item) : [];
   const showList = open && results.length > 0;
 
   function choose(song: CatalogSong) {
@@ -38,12 +73,17 @@ export function GuessInput({ catalog, disabled, nextSnippetGain, onGuess, onSkip
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!showList) return;
+    const move = (next: number) => {
+      setActive(next);
+      // The list can scroll when space is tight; keep the active option visible.
+      document.getElementById(`${listId}-${next}`)?.scrollIntoView({ block: "nearest" });
+    };
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((a) => (a + 1) % results.length);
+      move((active + 1) % results.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((a) => (a - 1 + results.length) % results.length);
+      move((active - 1 + results.length) % results.length);
     } else if (e.key === "Enter") {
       e.preventDefault();
       choose(results[active]);
@@ -57,6 +97,7 @@ export function GuessInput({ catalog, disabled, nextSnippetGain, onGuess, onSkip
       <div className="relative">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
+          ref={inputRef}
           type="text"
           role="combobox"
           aria-expanded={showList}
@@ -73,8 +114,12 @@ export function GuessInput({ catalog, disabled, nextSnippetGain, onGuess, onSkip
             setQuery(e.target.value);
             setOpen(true);
             setActive(0);
+            updateLayout();
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setOpen(true);
+            updateLayout();
+          }}
           onBlur={() => setTimeout(() => setOpen(false), 120)}
           onKeyDown={onKeyDown}
           className="h-13 w-full rounded-2xl bg-night/70 pl-11 pr-4 text-base text-foreground ring-1 ring-white/15 placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-marigold disabled:opacity-50"
@@ -83,7 +128,11 @@ export function GuessInput({ catalog, disabled, nextSnippetGain, onGuess, onSkip
           <ul
             id={listId}
             role="listbox"
-            className="absolute bottom-full z-30 mb-2 w-full overflow-hidden rounded-2xl bg-popover p-1.5 shadow-2xl ring-1 ring-white/15 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-2"
+            style={{ maxHeight: layout.maxHeight }}
+            className={cn(
+              "absolute z-30 w-full overflow-y-auto overscroll-contain rounded-2xl bg-popover p-1.5 shadow-2xl ring-1 ring-white/15",
+              layout.placement === "up" ? "bottom-full mb-2" : "top-full mt-2",
+            )}
           >
             {results.map((song, i) => (
               <li

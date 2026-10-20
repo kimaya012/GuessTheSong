@@ -1,20 +1,16 @@
 import { daysBetween } from "@/lib/date";
 
 // Single source of truth for "who may do what". Role (authority) and plan
-// (what was paid for) are separate: premium is a time-bounded entitlement,
-// not a role. Every gate in the app goes through `can()`.
+// (what was paid for) are separate. Today's puzzle and the whole archive are
+// open to everyone; only the capabilities below are real gates.
+//
+// Premium is parked: while it is switched off (see getPlan) nobody has the
+// "premium" plan. If it returns, give it only *additive* perks, never things
+// free players already have.
 export type Role = "user" | "admin";
 export type Plan = "free" | "premium";
 
-export type Capability =
-  | "puzzle:today"
-  | "archive:recent"
-  | "archive:full"
-  | "stats:cloud"
-  | "stats:deep"
-  | "badge:premium"
-  | "ads:none"
-  | "admin:access";
+export type Capability = "stats:deep" | "badge:premium" | "ads:none" | "admin:access";
 
 export interface Viewer {
   userId: string | null;
@@ -27,8 +23,6 @@ export interface Viewer {
 
 export type Tier = "guest" | "free" | "premium" | "admin";
 
-export const ARCHIVE_FREE_DAYS = 7;
-
 export function tierOf(viewer: Viewer): Tier {
   if (!viewer.userId) return "guest";
   if (viewer.role === "admin") return "admin";
@@ -36,37 +30,19 @@ export function tierOf(viewer: Viewer): Tier {
 }
 
 const GRANTS: Record<Tier, ReadonlySet<Capability>> = {
-  guest: new Set(["puzzle:today", "archive:recent"]),
-  free: new Set(["puzzle:today", "archive:recent", "stats:cloud"]),
-  premium: new Set([
-    "puzzle:today",
-    "archive:recent",
-    "archive:full",
-    "stats:cloud",
-    "stats:deep",
-    "badge:premium",
-    "ads:none",
-  ]),
-  admin: new Set([
-    "puzzle:today",
-    "archive:recent",
-    "archive:full",
-    "stats:cloud",
-    "stats:deep",
-    "ads:none",
-    "admin:access",
-  ]),
+  guest: new Set(),
+  // Signing in unlocks the deeper stats breakdown, at no cost.
+  free: new Set(["stats:deep"]),
+  premium: new Set(["stats:deep", "badge:premium", "ads:none"]),
+  admin: new Set(["stats:deep", "ads:none", "admin:access"]),
 };
 
 export function can(viewer: Viewer, capability: Capability): boolean {
   return GRANTS[tierOf(viewer)].has(capability);
 }
 
-export type PuzzleAccess = "ok" | "future" | "premium_required";
+export type PuzzleAccess = "ok" | "future";
 
-export function puzzleAccess(viewer: Viewer, date: string, today: string): PuzzleAccess {
-  const age = daysBetween(date, today);
-  if (age < 0) return "future";
-  if (age <= ARCHIVE_FREE_DAYS) return "ok";
-  return can(viewer, "archive:full") ? "ok" : "premium_required";
+export function puzzleAccess(date: string, today: string): PuzzleAccess {
+  return daysBetween(date, today) < 0 ? "future" : "ok";
 }
