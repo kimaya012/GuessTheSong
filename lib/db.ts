@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "@/db/schema";
+import { poolMax } from "@/lib/db-pool";
 
 // One pool per process. Cached on globalThis so dev hot-reloads don't leak
 // connections. The pool connects lazily, so importing this module (e.g.
@@ -11,7 +12,14 @@ function createPool(): Pool {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not set");
   }
-  return new Pool({ connectionString: process.env.DATABASE_URL, max: 10 });
+  return new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: poolMax(process.env.DB_POOL_MAX, process.env.NODE_ENV === "production"),
+    // Give up on a stuck connection instead of hanging a request, and let idle
+    // ones go so a paused or restarted database doesn't leave dead sockets.
+    connectionTimeoutMillis: 10_000,
+    idleTimeoutMillis: 10_000,
+  });
 }
 
 const pool = globalForDb.__gtbsPool ?? createPool();

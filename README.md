@@ -67,20 +67,22 @@ and the roughly 140 KB clip per puzzle; a 2,000-song catalog is close to the 0.5
 
 ## Going live
 
-1. Provision Postgres (e.g. Neon) and run `npm run db:migrate` against it.
-2. Deploy to a host whose free plan allows ads (see above) with every variable from `.env.example`.
-   `BETTER_AUTH_URL` must be the public https origin.
-3. **Google sign-in**: create an OAuth client with redirect URI `https://<domain>/api/auth/callback/google`.
-4. **Email**: verify your domain in Resend and set `EMAIL_FROM` on it.
-5. **Contact address**: set `NEXT_PUBLIC_CONTACT_EMAIL`. It appears in the footer and legal pages and is
-   how rights holders and players reach you.
-6. **AdSense**: once approved, set the client and slot ids, then configure the consent message in
+**v1 plan: Vercel (app) + Render (Postgres), no ads yet.** Step-by-step instructions, with the
+caveats of Render's free database (it expires after about 30 days, so there is a weekly encrypted
+backup and a "move to a new database" procedure): [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+Later, when adding ads or custom services:
+
+1. **Domain and host.** AdSense needs a domain you own, and the host's plan must allow ads (see the
+   table above). Set `BETTER_AUTH_URL` to the public https origin.
+2. **Email sign-in** (optional): verify your domain in Resend, then set `RESEND_API_KEY` and
+   `EMAIL_FROM`. Without a key, production sign-in is Google-only and the email form is hidden.
+3. **AdSense**: once approved, set the client and slot ids, then configure the consent message in
    AdSense, Privacy & messaging. `/ads.txt` is generated from the client id. Pages made mostly of
    a game with little text are a common reason for rejection, so keep the privacy and terms pages live.
-7. Run `puzzles:generate` against production from a machine with ffmpeg (the npm package bundles it)
-   every few weeks. `vercel.json` only schedules the daily `/api/cron/ensure-puzzles` check on
-   Vercel; on another host, call that route daily with `Authorization: Bearer $CRON_SECRET`
-   (for example from a scheduled GitHub Action).
+4. **Scheduled jobs.** `.github/workflows/puzzles.yml` tops up the schedule and cuts clips weekly;
+   `vercel.json` runs the daily `/api/cron/ensure-puzzles` check on Vercel (on another host, call it
+   daily with `Authorization: Bearer $CRON_SECRET`).
 
 ## Player names
 

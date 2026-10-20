@@ -4,6 +4,7 @@ import { SignInForm } from "@/components/auth/SignInForm";
 import { getViewer } from "@/lib/viewer";
 import { env } from "@/lib/env";
 import { safeNextPath } from "@/lib/safe-redirect";
+import { availableAuthMethods } from "@/lib/auth-methods";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -11,7 +12,13 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   const next = safeNextPath((await searchParams).next);
   const viewer = await getViewer();
   if (viewer.userId) redirect(next);
-  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = env();
+  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY } = env();
+  const methods = availableAuthMethods({
+    googleClientId: GOOGLE_CLIENT_ID,
+    googleClientSecret: GOOGLE_CLIENT_SECRET,
+    resendApiKey: RESEND_API_KEY,
+    isProd: process.env.NODE_ENV === "production",
+  });
 
   return (
     <main className="mx-auto grid w-full max-w-md flex-1 content-center px-4 py-12">
@@ -20,7 +27,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <p className="mb-7 mt-2 text-muted-foreground">
           Keep your streak and stats on every device. Games you&apos;ve played here come with you.
         </p>
-        <SignInForm next={next} googleEnabled={!!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET)} />
+        <SignInForm next={next} googleEnabled={methods.google} emailEnabled={methods.email} />
       </div>
     </main>
   );

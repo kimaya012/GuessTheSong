@@ -12,7 +12,7 @@ function GoogleIcon() {
   );
 }
 
-export function SignInForm({ next, googleEnabled }: { next: string; googleEnabled: boolean }) {
+export function SignInForm({ next, googleEnabled, emailEnabled }: { next: string; googleEnabled: boolean; emailEnabled: boolean }) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState("");
@@ -49,6 +49,14 @@ export function SignInForm({ next, googleEnabled }: { next: string; googleEnable
     );
   }
 
+  if (!googleEnabled && !emailEnabled) {
+    return (
+      <p role="status" className="text-muted-foreground">
+        Sign-in isn&apos;t available right now. You can still play, and your stats stay on this device.
+      </p>
+    );
+  }
+
   return (
     <div className="grid gap-4">
       {googleEnabled && (
@@ -60,39 +68,47 @@ export function SignInForm({ next, googleEnabled }: { next: string; googleEnable
           >
             <GoogleIcon /> Continue with Google
           </button>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-white/10" /> or get a sign-in link <span className="h-px flex-1 bg-white/10" />
-          </div>
+          {emailEnabled && (
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-white/10" /> or get a sign-in link <span className="h-px flex-1 bg-white/10" />
+            </div>
+          )}
         </>
       )}
-      <form onSubmit={sendLink} className="grid gap-3">
-        <label htmlFor="email" className="text-sm font-semibold">
-          Email address
-        </label>
-        <input
-          id="email"
-          type="email"
-          required
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          className="h-12 rounded-2xl bg-night/70 px-4 text-base ring-1 ring-white/15 placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-marigold"
-        />
-        {state === "error" && (
-          <p role="alert" className="text-sm text-rani">
-            {error}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={state === "sending"}
-          className="h-12 rounded-full bg-marigold font-bold text-primary-foreground transition-transform hover:-translate-y-px disabled:opacity-60"
-        >
-          {state === "sending" ? "Sending…" : "Email me a sign-in link"}
-        </button>
-      </form>
-      <p className="text-center text-xs text-muted-foreground">No passwords. New here? The same link creates your account.</p>
+      {emailEnabled && (
+        <form onSubmit={sendLink} className="grid gap-3">
+          <label htmlFor="email" className="text-sm font-semibold">
+            Email address
+          </label>
+          <input
+            id="email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="h-12 rounded-2xl bg-night/70 px-4 text-base ring-1 ring-white/15 placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-marigold"
+          />
+          {state === "error" && (
+            <p role="alert" className="text-sm text-rani">
+              {error}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={state === "sending"}
+            className="h-12 rounded-full bg-marigold font-bold text-primary-foreground transition-transform hover:-translate-y-px disabled:opacity-60"
+          >
+            {state === "sending" ? "Sending…" : "Email me a sign-in link"}
+          </button>
+        </form>
+      )}
+      {emailEnabled ? (
+        <p className="text-center text-xs text-muted-foreground">No passwords. New here? The same link creates your account.</p>
+      ) : (
+        <p className="text-center text-xs text-muted-foreground">No passwords. New here? Signing in with Google creates your account.</p>
+      )}
     </div>
   );
 }
